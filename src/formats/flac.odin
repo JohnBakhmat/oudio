@@ -2,6 +2,7 @@ package formats
 
 import "core:bufio"
 import "core:fmt"
+import "core:io"
 import os "core:os/os2"
 import "core:testing"
 
@@ -69,8 +70,9 @@ parse_header :: proc(arr: []byte) -> Header {
 read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 
 	r: bufio.Reader
-	buffer: [1024]byte
-	bufio.reader_init_with_buf(&r, os.to_reader(file), buffer[:])
+	buffer: [1024 * 8]byte
+	stream := os.to_reader(file)
+	bufio.reader_init_with_buf(&r, stream, buffer[:])
 	defer bufio.reader_destroy(&r)
 
 	// Check marker
@@ -103,6 +105,20 @@ read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 
 		if (header.stream_info == VORBIS_COMMENT) {
 			fmt.printfln("Found Vorbis Comment")
+
+			vorbisCommentBytes := make([]byte, header.length)
+			defer delete(vorbisCommentBytes)
+
+			s := bufio.reader_to_stream(&r)
+
+			vn, verr := io.read_full(s, vorbisCommentBytes)
+			if verr != nil || cast(u32)vn != header.length {
+				fmt.printfln("Failed to read voribs comment as bytes %v %d", verr, vn)
+				return VorbisComment{}, .UnknownError
+			}
+
+			fmt.printfln("\n\n Vorbis Comment Bytes: %s \n\n", vorbisCommentBytes)
+
 			return VorbisComment{title = "Vampire in the Corner"}, nil
 		}
 

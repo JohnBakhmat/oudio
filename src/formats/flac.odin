@@ -25,7 +25,17 @@ VorbisComment :: struct {
 	album:        string,
 	album_artist: string,
 	track_number: u8,
-	artists:      [dynamic]string,
+	artists:      []string,
+}
+
+destroy_vorbis_comment :: proc(c: VorbisComment, allocator: mem.Allocator = context.allocator) {
+	delete(c.title, allocator)
+	delete(c.album, allocator)
+	delete(c.album_artist, allocator)
+	for artist in c.artists {
+		delete(artist, allocator)
+	}
+	delete(c.artists, allocator)
 }
 
 check_is_flac :: proc(r: ^bufio.Reader) -> bool {

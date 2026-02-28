@@ -1,21 +1,31 @@
 package formats
 
 import "core:bufio"
+import "core:encoding/endian"
 import "core:fmt"
 import "core:io"
+import "core:mem"
 import os "core:os/os2"
+import "core:strconv"
+import "core:strings"
 import "core:testing"
-
 
 ReadError :: enum {
 	UnknownError,
 	UnsupportedFile,
 	UnableToOpenFile,
 	UnableToFindVorbisComment,
+	UnableToReadVendorString,
+	Invalid_Vendor_String,
+	Unable_To_Read_Field_Length,
 }
 
 VorbisComment :: struct {
-	title: string,
+	title:        string,
+	album:        string,
+	album_artist: string,
+	track_number: u8,
+	artists:      [dynamic]string,
 }
 
 check_is_flac :: proc(r: ^bufio.Reader) -> bool {
@@ -40,6 +50,8 @@ check_is_flac :: proc(r: ^bufio.Reader) -> bool {
 MAX_METADATA_BLOCK :: 128
 BLOCK_HEADER_SIZE :: 4
 VORBIS_COMMENT :: 4
+MAX_VORBIS_FIELDS :: 10000 // Reasonable limit for metadata fields
+MAX_FIELD_LENGTH :: 1024 * 1024 // 1MB max per field
 
 Header :: struct {
 	is_last:     bool,
@@ -66,6 +78,112 @@ parse_header :: proc(arr: []byte) -> Header {
 		length = u32(arr[1]) << 16 | u32(arr[2]) << 8 | u32(arr[3]),
 	}
 }
+
+parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError) {
+	fmt.printfln("Vorbis Comment Bytes: %d", len(arr))
+
+	length := u32(len(arr))
+	cursor: u32 = 0
+	vendor_str_len: u32
+	num_fields: u32
+	ok: bool = true
+
+	if cursor + 4 > u32(len(arr)) {
+		return VorbisComment{}, .UnknownError // TODO: descriptive error
+	}
+
+	// Read vendor string length
+	vendor_str_len, ok = endian.get_u32(arr[cursor:cursor + 4], .Little)
+	if (!ok) {
+		return VorbisComment{}, .UnableToReadVendorString
+	}
+	fmt.printfln("Vendor string length %d", vendor_str_len)
+	cursor += 4
+
+	if (vendor_str_len > MAX_FIELD_LENGTH || cursor + vendor_str_len > length) {
+		return VorbisComment{}, .UnableToReadVendorString
+	}
+
+	// Read vendor string
+	vendor_str := string(arr[cursor:cursor + vendor_str_len])
+	fmt.printfln("Vendor string %s", vendor_str)
+	cursor += vendor_str_len
+
+	//Read number of fields
+	if cursor + 4 > u32(len(arr)) {
+		return VorbisComment{}, .UnknownError // TODO: descriptive error
+	}
+	num_fields, ok = endian.get_u32(arr[cursor:cursor + 4], .Little)
+	if (!ok) {
+		return VorbisComment{}, .UnknownError
+	}
+	fmt.printfln("Number of fields %d", num_fields)
+	if (num_fields > MAX_VORBIS_FIELDS) {
+		return VorbisComment{}, .UnknownError
+	}
+	cursor += 4
+
+	// Read fields
+	comment: VorbisComment
+	for i in 0 ..< num_fields {
+
+		if cursor + 4 > u32(len(arr)) {
+			return VorbisComment{}, .UnknownError // TODO: descriptive error
+		}
+
+		field_length: u32
+
+		field_length, ok = endian.get_u32(arr[cursor:cursor + 4], .Little)
+		if (!ok) {
+			return VorbisComment{}, .Unable_To_Read_Field_Length
+		}
+
+		if (field_length > MAX_FIELD_LENGTH || cursor + field_length > length) {
+			return VorbisComment{}, .UnknownError
+		}
+		fmt.printfln("Field length %d", field_length)
+
+		cursor += 4
+
+		field := string(arr[cursor:cursor + field_length])
+		fmt.printfln("field %v", field)
+
+		pair := strings.split(field, "=")
+		defer delete(pair)
+		if (len(pair) != 2) {
+			return VorbisComment{}, .UnknownError
+		}
+		key := pair[0]
+		value := pair[1]
+
+		fmt.printfln("key |%v| value |%v| ", key, value)
+
+		switch key {
+		case "ALBUM":
+			comment.album = value
+		case "ARTIST":
+			append(&comment.artists, value)
+		case "ALBUM ARTIST":
+			comment.album_artist = value
+		case "TITLE":
+			comment.title = value
+		case "TRACK NUMBER":
+			track_number, ok := strconv.parse_int(value)
+			if !ok {
+				track_number = 0
+			}
+			comment.track_number = u8(track_number)
+		}
+		cursor += field_length
+	}
+
+	if comment.album_artist == "" && len(comment.artists) > 0 {
+		comment.album_artist = comment.artists[0]
+	}
+
+	return comment, nil
+}
+
 
 read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 
@@ -117,9 +235,7 @@ read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 				return VorbisComment{}, .UnknownError
 			}
 
-			fmt.printfln("\n\n Vorbis Comment Bytes: %s \n\n", vorbisCommentBytes)
-
-			return VorbisComment{title = "Vampire in the Corner"}, nil
+			return parse_vorbis_comment(&vorbisCommentBytes)
 		}
 
 		if (header.is_last) {
@@ -158,6 +274,8 @@ should_read_flac_file :: proc(t: ^testing.T) {
 
 
 	actual, err := read(f)
+
+	fmt.printfln("Actual: %v", actual)
 
 	expected := "Vampire in the Corner"
 

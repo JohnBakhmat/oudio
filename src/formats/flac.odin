@@ -177,7 +177,7 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 			comment.album_artist = strings.clone(value)
 		case "TITLE":
 			comment.title = strings.clone(value)
-		case "TRACK NUMBER":
+		case "TRACKNUMBER":
 			track_number, ok := strconv.parse_int(value)
 			if !ok {
 				track_number = 0

@@ -32,10 +32,7 @@ destroy_vorbis_comment :: proc(c: VorbisComment, allocator: mem.Allocator = cont
 	delete(c.title, allocator)
 	delete(c.album, allocator)
 	delete(c.album_artist, allocator)
-	for artist in c.artists {
-		delete(artist, allocator)
-	}
-	delete(c.artists, allocator)
+	delete(c.artists)
 }
 
 check_is_flac :: proc(r: ^bufio.Reader) -> bool {
@@ -133,6 +130,8 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 	}
 	cursor += 4
 
+	artists: [dynamic]string
+
 	// Read fields
 	comment: VorbisComment
 	for i in 0 ..< num_fields {
@@ -168,15 +167,16 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 
 		fmt.printfln("key |%v| value |%v| ", key, value)
 
+
 		switch key {
 		case "ALBUM":
-			comment.album = value
+			comment.album = strings.clone(value)
 		case "ARTIST":
-			append(&comment.artists, value)
+			append(&artists, strings.clone(value))
 		case "ALBUM ARTIST":
-			comment.album_artist = value
+			comment.album_artist = strings.clone(value)
 		case "TITLE":
-			comment.title = value
+			comment.title = strings.clone(value)
 		case "TRACK NUMBER":
 			track_number, ok := strconv.parse_int(value)
 			if !ok {
@@ -187,6 +187,8 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 		cursor += field_length
 	}
 
+	comment.artists = artists[:]
+
 	if comment.album_artist == "" && len(comment.artists) > 0 {
 		comment.album_artist = comment.artists[0]
 	}
@@ -195,10 +197,10 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 }
 
 
-read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
+flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 
 	r: bufio.Reader
-	buffer: [1024 * 8]byte
+	buffer: [1024]byte
 	stream := os.to_reader(file)
 	bufio.reader_init_with_buf(&r, stream, buffer[:])
 	defer bufio.reader_destroy(&r)
@@ -283,7 +285,8 @@ should_read_flac_file :: proc(t: ^testing.T) {
 	defer os.close(f)
 
 
-	actual, err := read(f)
+	actual, err := flac_read(f)
+	defer destroy_vorbis_comment(actual)
 
 	fmt.printfln("Actual: %v", actual)
 
@@ -299,52 +302,51 @@ should_read_flac_file :: proc(t: ^testing.T) {
 	)
 }
 
+@(test)
+should_check_flac_file :: proc(t: ^testing.T) {
 
-//@(test)
-//should_check_flac_file :: proc(t: ^testing.T) {
-//
-//	file_path := "../../test-data/07. Vampire in the Corner.flac"
-//	f, ferr := os.open(file_path, {.Read})
-//	if ferr != nil {
-//		fmt.eprintfln("{}", ferr)
-//		testing.expect(t, false, "failed to open flac file")
-//	}
-//	defer os.close(f)
-//
-//
-//	r: bufio.Reader
-//	buffer: [1024]byte
-//	bufio.reader_init_with_buf(&r, os.to_reader(f), buffer[:])
-//	defer bufio.reader_destroy(&r)
-//
-//	actual := check_is_flac(&r)
-//
-//	testing.expect(t, actual == true, "failed to open flac file")
-//}
-//
-//
-//@(test)
-//should_return_error_on_non_flac_file :: proc(t: ^testing.T) {
-//
-//	file_path := "../../test-data/08. Last Dinosaurs - Purxst.wav"
-//	f, ferr := os.open(file_path, {.Read})
-//	if ferr != nil {
-//		fmt.eprintfln("{}", ferr)
-//		testing.expect(t, false, "failed to open flac file")
-//	}
-//	defer os.close(f)
-//
-//
-//	r: bufio.Reader
-//	buffer: [1024]byte
-//	bufio.reader_init_with_buf(&r, os.to_reader(f), buffer[:])
-//	defer bufio.reader_destroy(&r)
-//
-//	actual := check_is_flac(&r)
-//
-//	testing.expect(
-//		t,
-//		actual == false,
-//		"check_is_flac was supposed to return false for non flac file",
-//	)
-//}
+	file_path := "../../test-data/07. Vampire in the Corner.flac"
+	f, ferr := os.open(file_path, {.Read})
+	if ferr != nil {
+		fmt.eprintfln("{}", ferr)
+		testing.expect(t, false, "failed to open flac file")
+	}
+	defer os.close(f)
+
+
+	r: bufio.Reader
+	buffer: [1024]byte
+	bufio.reader_init_with_buf(&r, os.to_reader(f), buffer[:])
+	defer bufio.reader_destroy(&r)
+
+	actual := check_is_flac(&r)
+
+	testing.expect(t, actual == true, "failed to open flac file")
+}
+
+
+@(test)
+should_return_error_on_non_flac_file :: proc(t: ^testing.T) {
+
+	file_path := "../../test-data/08. Last Dinosaurs - Purxst.wav"
+	f, ferr := os.open(file_path, {.Read})
+	if ferr != nil {
+		fmt.eprintfln("{}", ferr)
+		testing.expect(t, false, "failed to open flac file")
+	}
+	defer os.close(f)
+
+
+	r: bufio.Reader
+	buffer: [1024]byte
+	bufio.reader_init_with_buf(&r, os.to_reader(f), buffer[:])
+	defer bufio.reader_destroy(&r)
+
+	actual := check_is_flac(&r)
+
+	testing.expect(
+		t,
+		actual == false,
+		"check_is_flac was supposed to return false for non flac file",
+	)
+}

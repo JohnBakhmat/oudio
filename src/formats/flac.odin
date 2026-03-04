@@ -6,6 +6,7 @@ import "core:fmt"
 import "core:io"
 import "core:mem"
 import "core:os"
+import "core:path/filepath"
 import "core:strconv"
 import "core:strings"
 import "core:testing"
@@ -277,7 +278,11 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 @(test)
 should_read_flac_file :: proc(t: ^testing.T) {
 	file_path := "../../test-data/07. Vampire in the Corner.flac"
-	f, ferr := os.open(file_path, {.Read})
+
+	input_path, test_err := filepath.join({#directory, file_path}, context.temp_allocator)
+	testing.expect(t, test_err == nil)
+
+	f, ferr := os.open(input_path, {.Read})
 	if ferr != nil {
 		fmt.eprintfln("{}", ferr)
 		testing.expect(t, false, "failed to open flac file")
@@ -306,7 +311,11 @@ should_read_flac_file :: proc(t: ^testing.T) {
 should_check_flac_file :: proc(t: ^testing.T) {
 
 	file_path := "../../test-data/07. Vampire in the Corner.flac"
-	f, ferr := os.open(file_path, {.Read})
+
+	input_path, test_err := filepath.join({#directory, file_path}, context.temp_allocator)
+	testing.expect(t, test_err == nil)
+
+	f, ferr := os.open(input_path, {.Read})
 	if ferr != nil {
 		fmt.eprintfln("{}", ferr)
 		testing.expect(t, false, "failed to open flac file")
@@ -329,7 +338,11 @@ should_check_flac_file :: proc(t: ^testing.T) {
 should_return_error_on_non_flac_file :: proc(t: ^testing.T) {
 
 	file_path := "../../test-data/08. Last Dinosaurs - Purxst.wav"
-	f, ferr := os.open(file_path, {.Read})
+
+	input_path, test_err := filepath.join({#directory, file_path}, context.temp_allocator)
+	testing.expect(t, test_err == nil)
+
+	f, ferr := os.open(input_path, {.Read})
 	if ferr != nil {
 		fmt.eprintfln("{}", ferr)
 		testing.expect(t, false, "failed to open flac file")

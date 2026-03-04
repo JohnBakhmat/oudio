@@ -6,6 +6,7 @@ import "core:mem"
 import "core:mem/virtual"
 import vmem "core:mem/virtual"
 import "core:os"
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 import "core:testing"
@@ -128,16 +129,18 @@ walk_dir :: proc(path: string, allocator := context.allocator) -> [dynamic]strin
 should_index_all_file_paths :: proc(t: ^testing.T) {
 	dir_path := "../../test-data/"
 
+	input_path, test_err := filepath.join({#directory, dir_path}, context.temp_allocator)
+	testing.expect(t, test_err == nil)
+
 	arena: vmem.Arena
 	arena_err := vmem.arena_init_growing(&arena)
 	defer vmem.arena_destroy(&arena)
 
 	testing.expect(t, arena_err == nil, "Failed to initialize arena")
 
-
 	arena_allocator := vmem.arena_allocator(&arena)
 
-	paths_dyn := walk_dir(dir_path, arena_allocator)
+	paths_dyn := walk_dir(input_path, arena_allocator)
 	defer delete_dynamic_array(paths_dyn)
 
 	paths := paths_dyn[:]

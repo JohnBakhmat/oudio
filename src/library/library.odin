@@ -3,7 +3,7 @@ package library
 import formats "../formats"
 import "core:fmt"
 import "core:mem"
-import os "core:os/os2"
+import "core:os"
 import "core:slice"
 import "core:strings"
 import "core:testing"

@@ -12,6 +12,22 @@ import sa "../../vendor/sqlite/addons"
 
 main :: proc() {
 
+	args := os.args
+	fmt.printfln("Args: |%#v|", args)
+
+	db_url: cstring = "db.sqlite"
+
+	if len(args) == 2 {
+		last := args[1]
+
+		if (len(last) > 0 &&
+			   (strings.has_suffix(last, ".db") || strings.has_suffix(last, ".sqlite"))) {
+
+			db_url = strings.clone_to_cstring(last)
+		}
+	}
+
+
 	track: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&track, context.allocator)
 	context.allocator = mem.tracking_allocator(&track)
@@ -58,7 +74,7 @@ main :: proc() {
 
 	db: ^sqlite.Connection
 
-	if rc := sqlite.open(DB_URL, &db); rc != .Ok {
+	if rc := sqlite.open(db_url, &db); rc != .Ok {
 		fmt.panicf("failed to open database. result code {}", rc)
 	}
 	fmt.printfln("connected to database")

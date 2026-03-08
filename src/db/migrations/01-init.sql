@@ -13,7 +13,9 @@ CREATE TABLE album (
 
 CREATE TABLE artist (
 	id TEXT PRIMARY KEY,
-	name TEXT NOT NULL UNIQUE
+	name TEXT NOT NULL UNIQUE,
+	mb_id TEXT,
+	acoust_id TEXT
 );
 
 CREATE TABLE track (

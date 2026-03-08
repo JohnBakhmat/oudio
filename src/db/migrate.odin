@@ -14,32 +14,9 @@ DB_URL :: "oudio.db"
 
 main :: proc() {
 
-	alloc := context.temp_allocator
-
-	migration_dir, err := filepath.join({#directory, "migrations"}, alloc)
-
-	assert(err == nil, "Unable to resolve migrations folder path")
-
-	dir_entries, err2 := os.read_all_directory_by_path(migration_dir, alloc)
-	defer os.file_info_slice_delete(dir_entries, alloc)
-
-	assert(err2 == nil, "Unable to find migration list from folder")
-
-	only_sql := slice.filter(dir_entries, proc(x: os.File_Info) -> bool {
-		return strings.has_suffix(x.fullpath, ".sql")
-	})
-
-	slice.sort_by(only_sql, proc(a, b: os.File_Info) -> bool {
-		return strings.compare(a.fullpath, b.fullpath) < 0
-	})
-
-	fmt.printfln("Entries: %#v", only_sql)
-
-	// Apply
-
 	track: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&track, context.allocator)
-
+	context.allocator = mem.tracking_allocator(&track)
 	defer {
 		if len(track.allocation_map) > 0 {
 			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
@@ -55,6 +32,31 @@ main :: proc() {
 		}
 		mem.tracking_allocator_destroy(&track)
 	}
+
+
+	migration_dir, err := filepath.join({#directory, "migrations"}, context.allocator)
+	defer delete(migration_dir)
+
+	assert(err == nil, "Unable to resolve migrations folder path")
+
+	dir_entries, err2 := os.read_all_directory_by_path(migration_dir, context.allocator)
+	defer os.file_info_slice_delete(dir_entries, context.allocator)
+
+	assert(err2 == nil, "Unable to find migration list from folder")
+
+	only_sql := slice.filter(dir_entries, proc(x: os.File_Info) -> bool {
+		return strings.has_suffix(x.fullpath, ".sql")
+	})
+	defer delete(only_sql)
+
+	slice.sort_by(only_sql, proc(a, b: os.File_Info) -> bool {
+		return strings.compare(a.fullpath, b.fullpath) < 0
+	})
+
+	fmt.printfln("Entries: %#v", only_sql)
+
+	// Apply
+
 
 	db: ^sqlite.Connection
 
@@ -81,9 +83,23 @@ apply :: proc(db: ^sqlite.Connection, path: string, allocator := context.allocat
 
 	text := string(data)
 
-	fmt.printfln("Migration: %#v", text)
+	expressions := strings.split(text, ";")
+	defer delete(expressions)
 
+	trimmed: string
+	for exp in expressions {
+		trimmed = strings.trim_space(exp)
+		if (len(trimmed) == 0) {continue}
 
-	rc := sa.execute(db, text)
-	assert(rc == .Ok)
+		fmt.printfln("Expressions: |%#v| \nApplying", trimmed)
+
+		rc := sa.execute(db, trimmed)
+		assert(rc == .Ok)
+
+		fmt.printfln("Applied successfully")
+	}
+	delete(trimmed)
+
+	//	rc := sa.execute(db, text)
+	//	assert(rc == .Ok)
 }

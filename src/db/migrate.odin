@@ -10,8 +10,6 @@ import "core:strings"
 import sqlite "../../vendor/sqlite"
 import sa "../../vendor/sqlite/addons"
 
-DB_URL :: "oudio.db"
-
 main :: proc() {
 
 	track: mem.Tracking_Allocator

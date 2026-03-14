@@ -194,6 +194,8 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 		comment.album_artist = comment.artists[0]
 	}
 
+	fmt.printfln("Comment %#v", comment)
+
 	return comment, nil
 }
 

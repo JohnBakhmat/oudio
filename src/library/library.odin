@@ -51,8 +51,11 @@ walk_dir :: proc(path: string, allocator := context.allocator) -> [dynamic]strin
 			continue
 		}
 
-		fmt.printfln("Found: %s", info.fullpath)
-		append(&paths, info.fullpath)
+		filePath := strings.clone(info.fullpath, allocator)
+
+		fmt.printfln("Found: %s", filePath)
+		append(&paths, filePath)
+		fmt.printfln("inner Paths: %$v", paths)
 	}
 
 	fmt.printfln("=== Total ===")

@@ -17,10 +17,26 @@ new_artist :: proc(
 	id := gen_id("artist", allocator)
 	defer delete(id, allocator)
 
+
+	params := make([dynamic]sa.Query_Param, 2, 4, allocator)
+	defer delete_dynamic_array(params)
+	params[0] = sa.Query_Param{1, id}
+	params[1] = sa.Query_Param{2, artist.name}
+
+
+	mb_id, acoust_id: string
+	ok: bool
+
+	mb_id, ok = artist.mb_id.?
+	if ok do append(&params, sa.Query_Param{3, mb_id})
+
+	acoust_id, ok = artist.acoust_id.?
+	if ok do append(&params, sa.Query_Param{4, acoust_id})
+
 	return sa.execute(
 		db,
 		"INSERT INTO artist (id, name, mb_id, acoust_id) VALUES (?, ?, ?, ?)",
-		{{1, id}, {2, artist.name}, {3, artist.mb_id.?}, {4, artist.acoust_id.?}},
+		params[:],
 	)
 }
 

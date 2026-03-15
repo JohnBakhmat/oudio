@@ -21,10 +21,10 @@ Artist :: struct {
 }
 
 Album :: struct {
-	id:       Album_Id,
-	title:    string,
-	mb_id:    Maybe(string), // MUSICBRAINZ_ALBUMID,
-	mb_rg_id: Maybe(string), // MUSICBRAINZ_RELEASEGROUPID,
+	id:       string `sqlite:"id"`,
+	title:    string `sqlite:"title"`,
+	mb_id:    Maybe(string) `sqlite:"mb_id"`, // MUSICBRAINZ_ALBUMID,
+	mb_rg_id: Maybe(string) `sqlite:"mb_rg_id"`, // MUSICBRAINZ_RELEASEGROUPID,
 }
 
 

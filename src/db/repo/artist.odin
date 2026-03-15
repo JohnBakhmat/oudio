@@ -1,9 +1,9 @@
-#+vet explicit-allocators
-package db
+package repo
 
-import sqlite "../../vendor/sqlite"
-import sa "../../vendor/sqlite/addons"
-import types "../core"
+import db_pkg "../"
+import sqlite "../../../vendor/sqlite"
+import sa "../../../vendor/sqlite/addons"
+import types "../../core"
 import "core:fmt"
 import "core:mem"
 import "core:testing"
@@ -14,7 +14,7 @@ new_artist :: proc(
 	allocator := context.allocator,
 ) -> sqlite.Result_Code {
 
-	id := gen_id("artist", allocator)
+	id := db_pkg.gen_id("artist", allocator)
 	defer delete(id, allocator)
 
 
@@ -145,7 +145,7 @@ should_create_new_artist_batch :: proc(t: ^testing.T) {
 
 	db: ^sqlite.Connection
 
-	if rc := sqlite.open(db_url, &db); rc != .Ok {
+	if rc := sqlite.open(db_pkg.db_url, &db); rc != .Ok {
 		fmt.panicf("failed to open database. result code {}", rc)
 	}
 	fmt.printfln("connected to database")

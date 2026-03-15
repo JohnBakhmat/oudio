@@ -101,4 +101,5 @@ should_get_album_by_id :: proc(t: ^testing.T) {
 	testing.expect(t, ok)
 	testing.expect(t, album.title == "Test title")
 
+	fmt.printfln("Album: %#v", album)
 }

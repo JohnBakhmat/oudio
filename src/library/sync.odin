@@ -3,7 +3,7 @@ package library
 import sqlite "../../vendor/sqlite"
 import sa "../../vendor/sqlite/addons"
 import types "../core"
-import db "../db"
+import db "../db/repo"
 import formats "../formats"
 import "core:fmt"
 import "core:mem"
@@ -19,7 +19,6 @@ import "core:testing"
 main :: proc() {
 
 	dir_path := "../../test-data/"
-
 	input_path, test_err := filepath.join({#directory, dir_path}, context.temp_allocator)
 	assert(test_err == nil)
 
@@ -95,8 +94,11 @@ main :: proc() {
 
 		fmt.printfln("Flac Comment %#v, artist %#v album %#v", flac, artist, album)
 
-		rc = db.new_album(db_conn, album)
-		assert(rc == .Ok)
+		new_id, err := db.new_album(db_conn, album)
+		defer delete(new_id)
+		assert(err == .None || err == .UniqueConstraint)
+		fmt.printfln("New album |%v| with id |%v|", album.title, new_id)
+
 		rc = db.new_artist(db_conn, artist)
 		assert(rc == .Ok)
 		formats.destroy_vorbis_comment(flac)

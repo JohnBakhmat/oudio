@@ -1,21 +1,21 @@
 CREATE TABLE migrations (
 	id INTEGER PRIMARY KEY,
-	name TEXT NOT NULL,
+	name TEXT NOT NULL UNIQUE,
 	applied_at DATE
 );
 
 CREATE TABLE album (
 	id TEXT PRIMARY KEY,
 	title TEXT NOT NULL,
-	mb_id TEXT,
-	mb_rg_id TEXT
+	mb_id TEXT UNIQUE,
+	mb_rg_id TEXT UNIQUE
 );
 
 CREATE TABLE artist (
 	id TEXT PRIMARY KEY,
 	name TEXT NOT NULL UNIQUE,
-	mb_id TEXT,
-	acoust_id TEXT
+	mb_id TEXT UNIQUE,
+	acoust_id TEXT UNIQUE
 );
 
 CREATE TABLE track (

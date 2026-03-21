@@ -25,3 +25,9 @@ gen_id :: proc(prefix: Maybe(string), allocator := context.allocator) -> string 
 
 	return id
 }
+
+DatabaseErrors :: enum {
+	None,
+	UniqueConstraint,
+	UnknownError,
+}

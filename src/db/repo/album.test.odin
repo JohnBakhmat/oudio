@@ -52,8 +52,10 @@ should_create_new_album :: proc(t: ^testing.T) {
 		mb_rg_id = "asdf",
 	}
 
-	rc := new_album(db, album)
-	testing.expect(t, rc == .Ok)
+	new_id, err := new_album(db, album)
+	fmt.printfln("Error: %v", err)
+	defer delete(new_id)
+	testing.expect(t, err == .None)
 
 }
 

@@ -78,6 +78,7 @@ main :: proc() {
 		assert(ferr == nil)
 
 		flac, flac_err := formats.flac_read(file)
+		defer formats.destroy_vorbis_comment(flac)
 
 		os.close(file)
 		assert(flac_err == nil)
@@ -90,20 +91,32 @@ main :: proc() {
 		}
 
 		artist := types.Artist {
-			id   = "",
-			name = flac.album_artist,
+			id    = "",
+			name  = flac.album_artist,
+			mb_id = flac.mb_artist_id,
 		}
 
 		fmt.printfln("Flac Comment %#v, artist %#v album %#v", flac, artist, album)
 
-		new_id, err := db.new_album(db_conn, album)
-		defer delete(new_id)
-		assert(err == .None || err == .UniqueConstraint)
-		fmt.printfln("New album |%v| with id |%v|", album.title, new_id)
+		new_album_id, album_err := db.new_album(db_conn, album)
+		defer delete(new_album_id)
+		assert(album_err == .None || album_err == .UniqueConstraint)
+		fmt.printfln("New album |%v| with id |%v|", album.title, new_album_id)
 
-		rc = db.new_artist(db_conn, artist)
-		assert(rc == .Ok)
-		formats.destroy_vorbis_comment(flac)
+		new_artist_id, artist_err := db.new_artist(db_conn, artist)
+		defer delete(new_artist_id)
+		assert(artist_err == .None || artist_err == .UniqueConstraint)
+		fmt.printfln("New artist |%v| with id |%v|", artist.name, new_artist_id)
+
+		if (flac.album_artist == artist.name) {
+			artist_album := types.ArtistAlbum {
+				album_id  = new_album_id,
+				artist_id = new_artist_id,
+			}
+
+			artist_album_err := db.new_artist_album(db_conn, artist_album)
+			assert(artist_err == .None || artist_err == .UniqueConstraint)
+
+		}
 	}
-
 }

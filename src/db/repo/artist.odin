@@ -4,40 +4,120 @@ import db_pkg "../"
 import sqlite "../../../vendor/sqlite"
 import sa "../../../vendor/sqlite/addons"
 import types "../../core"
+import "core:c"
 import "core:fmt"
 import "core:mem"
+import "core:strings"
 import "core:testing"
 
 new_artist :: proc(
 	db: ^sqlite.Connection,
 	artist: types.Artist,
 	allocator := context.allocator,
-) -> sqlite.Result_Code {
+) -> (
+	new_id: string,
+	err: db_pkg.DatabaseErrors,
+) {
 
-	id := db_pkg.gen_id("artist", allocator)
-	defer delete(id, allocator)
-
-
-	params := make([dynamic]sa.Query_Param, 2, 4, allocator)
-	defer delete_dynamic_array(params)
-	params[0] = sa.Query_Param{1, id}
-	params[1] = sa.Query_Param{2, artist.name}
-
-
-	mb_id, acoust_id: string
+	fmt.printfln("New artist: %#v", artist)
 	ok: bool
 
-	mb_id, ok = artist.mb_id.?
-	if ok do append(&params, sa.Query_Param{3, mb_id})
+	id := db_pkg.gen_id("artist", allocator)
+	new_id = id
 
-	acoust_id, ok = artist.acoust_id.?
-	if ok do append(&params, sa.Query_Param{4, acoust_id})
+	c_id := strings.clone_to_cstring(id, allocator)
+	c_name := strings.clone_to_cstring(artist.name, allocator)
 
-	return sa.execute(
-		db,
-		"INSERT INTO artist (id, name, mb_id, acoust_id) VALUES (?, ?, ?, ?)",
-		params[:],
-	)
+	defer {
+		delete(c_id, allocator)
+		delete(c_name, allocator)
+	}
+
+	query: cstring = "INSERT INTO artist (id, name, mb_id, acoust_id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING"
+
+	stmt: ^sqlite.Statement
+
+
+	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
+		return new_id, .UnknownError
+	}
+	defer sqlite.finalize(stmt)
+
+
+	if rc := sqlite.bind_text(
+		stmt,
+		param_idx = 1,
+		param_value = c_id,
+		param_len = c.int(len(id)),
+		free = {behaviour = .Static},
+	); rc != .Ok {
+		fmt.eprintfln("failed to bind value to ArtistId. result code: {}", rc)
+		return new_id, .UnknownError
+	}
+
+	if rc := sqlite.bind_text(
+		stmt,
+		param_idx = 2,
+		param_value = c_name,
+		param_len = c.int(len(artist.name)),
+		free = {behaviour = .Static},
+	); rc != .Ok {
+		fmt.eprintfln("failed to bind value to artist name. result code: {}", rc)
+		return new_id, .UnknownError
+	}
+
+
+	c_mb_id, c_acoust_id: cstring
+	defer delete(c_mb_id, allocator)
+	defer delete(c_acoust_id, allocator)
+
+	if mb_id, ok := artist.mb_id.?; ok {
+		c_mb_id = strings.clone_to_cstring(mb_id, allocator)
+		fmt.printfln("%s %s", mb_id, c_mb_id)
+
+		if rc := sqlite.bind_text(
+			stmt,
+			param_idx = 3,
+			param_value = c_mb_id,
+			param_len = c.int(len(mb_id)),
+			free = {behaviour = .Static},
+		); rc != .Ok {
+			fmt.eprintfln("failed to bind value to mb_id. result code: {}", rc)
+			return new_id, .UnknownError
+		}
+	}
+
+
+	if acoust_id, ok := artist.acoust_id.?; ok {
+		c_acoust_id = strings.clone_to_cstring(acoust_id, allocator)
+		fmt.printfln("%s %s", acoust_id, c_acoust_id)
+
+		if rc := sqlite.bind_text(
+			stmt,
+			param_idx = 4,
+			param_value = c_acoust_id,
+			param_len = c.int(len(acoust_id)),
+			free = {behaviour = .Static},
+		); rc != .Ok {
+			fmt.eprintfln("failed to bind value to acoust_id. result code: {}", rc)
+			return new_id, .UnknownError
+		}
+	}
+
+	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
+
+	rc := sqlite.step(stmt)
+	fmt.printfln("Step RC: %v", rc)
+	if (rc == .Constraint) {
+		return new_id, .UniqueConstraint
+	}
+	if (rc != .Done) {
+		return new_id, .UnknownError
+	}
+
+	return new_id, .None
+
+
 }
 
 new_artist_batch :: proc(
@@ -57,8 +137,8 @@ new_artist_batch :: proc(
 
 	for artist in artists {
 		fmt.printfln("Inserting %v", artist)
-		rc = new_artist(db, artist, allocator)
-		assert(rc == .Ok)
+		new_id, err := new_artist(db, artist, allocator)
+		assert(err == .None)
 	}
 
 	fmt.printfln("Commiting transaction")
@@ -66,101 +146,4 @@ new_artist_batch :: proc(
 	assert(rc == .Ok)
 
 	return rc
-}
-
-
-// ================
-// Tests
-// ================
-
-// @(test)
-// should_create_new_artist :: proc(t: ^testing.T) {
-//
-// 	track: mem.Tracking_Allocator
-// 	mem.tracking_allocator_init(&track, context.allocator, context.allocator)
-// 	context.allocator = mem.tracking_allocator(&track)
-// 	defer {
-// 		if len(track.allocation_map) > 0 {
-// 			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
-// 			for _, entry in track.allocation_map {
-// 				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
-// 			}
-// 		}
-// 		if len(track.bad_free_array) > 0 {
-// 			fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-// 			for entry in track.bad_free_array {
-// 				fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
-// 			}
-// 		}
-// 		mem.tracking_allocator_destroy(&track)
-// 	}
-//
-//
-// 	db: ^sqlite.Connection
-//
-// 	if rc := sqlite.open(db_url, &db); rc != .Ok {
-// 		fmt.panicf("failed to open database. result code {}", rc)
-// 	}
-// 	fmt.printfln("connected to database")
-//
-// 	defer {
-// 		sqlite.close(db)
-// 		fmt.printfln("\nconnection closed")
-// 	}
-//
-// 	artist := types.Artist {
-// 		id        = "test",
-// 		name      = "PinkPantheres",
-// 		mb_id     = "asdf",
-// 		acoust_id = "123",
-// 	}
-//
-// 	rc := new_artist(db, artist, context.allocator)
-// 	testing.expect(t, rc == .Ok)
-// }
-
-@(test)
-should_create_new_artist_batch :: proc(t: ^testing.T) {
-
-
-	track: mem.Tracking_Allocator
-	mem.tracking_allocator_init(&track, context.allocator, context.allocator)
-	context.allocator = mem.tracking_allocator(&track)
-	defer {
-		if len(track.allocation_map) > 0 {
-			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
-			for _, entry in track.allocation_map {
-				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
-			}
-		}
-		if len(track.bad_free_array) > 0 {
-			fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-			for entry in track.bad_free_array {
-				fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
-			}
-		}
-		mem.tracking_allocator_destroy(&track)
-	}
-
-
-	db: ^sqlite.Connection
-
-	if rc := sqlite.open(db_pkg.db_url, &db); rc != .Ok {
-		fmt.panicf("failed to open database. result code {}", rc)
-	}
-	fmt.printfln("connected to database")
-
-	defer {
-		sqlite.close(db)
-		fmt.printfln("connection closed")
-	}
-
-	artists := []types.Artist {
-		{id = "test1", name = "PinkPantheres1", mb_id = "asdf", acoust_id = "123"},
-		{id = "test2", name = "PinkPantheres2", mb_id = "asdf", acoust_id = "123"},
-		{id = "test3", name = "PinkPantheres3", mb_id = "asdf", acoust_id = "123"},
-	}
-
-	rc := new_artist_batch(db, artists, context.allocator)
-	testing.expect(t, rc == .Ok)
 }

@@ -27,7 +27,14 @@ Album :: struct {
 	mb_rg_id: Maybe(string), // MUSICBRAINZ_RELEASEGROUPID,
 }
 
+// Junctions
+ArtistAlbum :: struct {
+	artist_id: string,
+	album_id:  string,
+}
 
+
+// Api
 AlbumFull :: struct {
 	album:   Album,
 	artists: []Artist,

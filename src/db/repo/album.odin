@@ -18,7 +18,6 @@ new_album :: proc(
 ) {
 
 	fmt.printfln("New Album: %#v", album)
-
 	ok: bool
 
 	id := db_pkg.gen_id("album", allocator)

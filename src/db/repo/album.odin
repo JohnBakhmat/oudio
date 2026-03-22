@@ -17,8 +17,9 @@ new_album :: proc(
 	err: db_pkg.DatabaseErrors,
 ) {
 
+	fmt.printfln("New Album: %#v", album)
+
 	ok: bool
-	mb_id, mb_rg_id: string
 
 	id := db_pkg.gen_id("album", allocator)
 	new_id = id
@@ -30,7 +31,7 @@ new_album :: proc(
 		delete(c_title, allocator)
 	}
 
-	query: cstring = "INSERT INTO album (id, title, mb_id, mb_rg_id) VALUES (?, ?, ?, ?)"
+	query: cstring = "INSERT INTO album (id, title, mb_id, mb_rg_id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING"
 
 	stmt: ^sqlite.Statement
 
@@ -62,9 +63,14 @@ new_album :: proc(
 		return new_id, .UnknownError
 	}
 
+
+	c_mb_id, c_mb_rg_id: cstring
+	defer delete(c_mb_id, allocator)
+	defer delete(c_mb_rg_id, allocator)
+
 	if mb_id, ok := album.mb_id.?; ok {
-		c_mb_id := strings.clone_to_cstring(mb_id, allocator)
-		defer delete(c_mb_id, allocator)
+		c_mb_id = strings.clone_to_cstring(mb_id, allocator)
+		fmt.printfln("%s %s", mb_id, c_mb_id)
 
 		if rc := sqlite.bind_text(
 			stmt,
@@ -81,8 +87,7 @@ new_album :: proc(
 
 
 	if mb_rg_id, ok := album.mb_rg_id.?; ok {
-		c_mb_rg_id := strings.clone_to_cstring(mb_rg_id, allocator)
-		defer delete(c_mb_rg_id, allocator)
+		c_mb_rg_id = strings.clone_to_cstring(mb_rg_id, allocator)
 
 		if rc := sqlite.bind_text(
 			stmt,

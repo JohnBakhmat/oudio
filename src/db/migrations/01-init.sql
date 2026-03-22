@@ -6,7 +6,7 @@ CREATE TABLE migrations (
 
 CREATE TABLE album (
 	id TEXT PRIMARY KEY,
-	title TEXT NOT NULL,
+	title TEXT NOT NULL UNIQUE,
 	mb_id TEXT UNIQUE,
 	mb_rg_id TEXT UNIQUE
 );

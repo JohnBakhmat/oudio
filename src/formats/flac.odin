@@ -27,13 +27,27 @@ VorbisComment :: struct {
 	album_artist: string,
 	track_number: u8,
 	artists:      []string,
+	mb_id:        Maybe(string),
+	mb_rg_id:     Maybe(string),
+	mb_artist_id: Maybe(string),
 }
 
 destroy_vorbis_comment :: proc(c: VorbisComment, allocator: mem.Allocator = context.allocator) {
 	delete(c.title, allocator)
 	delete(c.album, allocator)
 	delete(c.album_artist, allocator)
-	delete(c.artists)
+	delete(c.artists, allocator)
+	if mb_id, ok := c.mb_id.?; ok {
+		delete(mb_id, allocator)
+	}
+
+	if mb_rg_id, ok := c.mb_rg_id.?; ok {
+		delete(mb_rg_id, allocator)
+	}
+
+	if mb_artist_id, ok := c.mb_artist_id.?; ok {
+		delete(mb_artist_id, allocator)
+	}
 }
 
 check_is_flac :: proc(r: ^bufio.Reader) -> bool {
@@ -178,6 +192,12 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 			comment.album_artist = strings.clone(value)
 		case "TITLE":
 			comment.title = strings.clone(value)
+		case "MUSICBRAINZ_ALBUMID":
+			comment.mb_id = strings.clone(value)
+		case "MUSICBRAINZ_RELEASEGROUPID":
+			comment.mb_rg_id = strings.clone(value)
+		case "MUSICBRAINZ_ARTISTID":
+			comment.mb_artist_id = strings.clone(value)
 		case "TRACKNUMBER":
 			track_number, ok := strconv.parse_int(value)
 			if !ok {

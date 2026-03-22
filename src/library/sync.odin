@@ -83,8 +83,10 @@ main :: proc() {
 		assert(flac_err == nil)
 
 		album := types.Album {
-			id    = "",
-			title = flac.album,
+			id       = "",
+			title    = flac.album,
+			mb_id    = flac.mb_id,
+			mb_rg_id = flac.mb_rg_id,
 		}
 
 		artist := types.Artist {

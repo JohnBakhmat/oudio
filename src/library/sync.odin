@@ -99,8 +99,19 @@ main :: proc() {
 		fmt.printfln("Flac Comment %#v, artist %#v album %#v", flac, artist, album)
 
 		new_album_id, album_err := db.new_album(db_conn, album)
-		defer delete(new_album_id)
+		defer delete(string(new_album_id))
 		assert(album_err == .None || album_err == .UniqueConstraint)
+		fmt.printfln("\n\nAlbum Err %v", album_err)
+
+		if (album_err == .UniqueConstraint) {
+			fmt.printfln("Sync, album unique constraint")
+			existing_album, existing_album_ok := db.get_album_by_title(db_conn, album.title)
+			assert(existing_album_ok)
+			fmt.printfln("Existing Album %v", existing_album)
+			new_album_id = types.Album_Id(strings.clone(string(existing_album.id)))
+		}
+
+
 		fmt.printfln("New album |%v| with id |%v|", album.title, new_album_id)
 
 		new_artist_id, artist_err := db.new_artist(db_conn, artist)

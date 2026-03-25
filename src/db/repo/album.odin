@@ -13,7 +13,7 @@ new_album :: proc(
 	album: types.Album,
 	allocator := context.allocator,
 ) -> (
-	new_id: string,
+	new_id: types.Album_Id,
 	err: db_pkg.DatabaseErrors,
 ) {
 
@@ -21,7 +21,7 @@ new_album :: proc(
 	ok: bool
 
 	id := db_pkg.gen_id("album", allocator)
-	new_id = id
+	new_id = types.Album_Id(id)
 	c_id := strings.clone_to_cstring(id, allocator)
 	c_title := strings.clone_to_cstring(album.title, allocator)
 
@@ -30,7 +30,7 @@ new_album :: proc(
 		delete(c_title, allocator)
 	}
 
-	query: cstring = "INSERT INTO album (id, title, mb_id, mb_rg_id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING"
+	query: cstring = "INSERT INTO album (id, title, mb_id, mb_rg_id) VALUES (?, ?, ?, ?)"
 
 	stmt: ^sqlite.Statement
 
@@ -144,6 +144,64 @@ new_album_batch :: proc(
 	assert(rc == .Ok)
 
 	return rc
+}
+
+get_album_by_title :: proc(
+	db: ^sqlite.Connection,
+	title: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Album,
+	ok: bool,
+) {
+
+	query: cstring = "SELECT * FROM album WHERE title = ? LIMIT 1"
+
+	stmt: ^sqlite.Statement
+
+	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
+		fmt.eprintfln("failed to prepare statement. result code: {}", rc)
+		return res, false
+	}
+
+	defer sqlite.finalize(stmt)
+
+	c_title := strings.clone_to_cstring(title, allocator)
+	defer delete(c_title)
+
+	if rc := sqlite.bind_text(
+		stmt,
+		param_idx = 1,
+		param_value = c_title,
+		param_len = c.int(len(title)),
+		free = {behaviour = .Static},
+	); rc != .Ok {
+		fmt.eprintfln("failed to bind value to ArtistId. result code: {}", rc)
+		return res, false
+	}
+
+	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
+
+	albums := make([dynamic]types.Album, 0, 1)
+	// defer {
+	// 	for album in albums {
+	// 		delete(string(album.id))
+	// 		delete(album.title)
+	// 	}
+	// 	delete_dynamic_array(albums)
+	// }
+
+	for sqlite.step(stmt) == .Row {
+
+		album := types.Album {
+			id    = types.Album_Id(strings.clone_from(sqlite.column_text(stmt, 0))),
+			title = strings.clone_from(sqlite.column_text(stmt, 1)),
+		}
+
+		append(&albums, album)
+	}
+
+	return albums[0], true
 }
 
 get_album_by_id :: proc(

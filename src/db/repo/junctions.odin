@@ -18,7 +18,7 @@ new_artist_album :: proc(
 	ok: bool
 
 	c_artist_id := strings.clone_to_cstring(a.artist_id, allocator)
-	c_album_id := strings.clone_to_cstring(a.album_id, allocator)
+	c_album_id := strings.clone_to_cstring(string(a.album_id), allocator)
 
 	defer {
 		delete(c_artist_id, allocator)

@@ -30,7 +30,7 @@ Album :: struct {
 // Junctions
 ArtistAlbum :: struct {
 	artist_id: string,
-	album_id:  string,
+	album_id:  Album_Id,
 }
 
 

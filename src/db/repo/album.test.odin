@@ -54,7 +54,7 @@ should_create_new_album :: proc(t: ^testing.T) {
 
 	new_id, err := new_album(db, album)
 	fmt.printfln("Error: %v", err)
-	defer delete(new_id)
+	defer delete(string(new_id))
 	testing.expect(t, err == .None)
 
 }

@@ -15,7 +15,7 @@ new_artist :: proc(
 	artist: types.Artist,
 	allocator := context.allocator,
 ) -> (
-	new_id: string,
+	new_id: types.Artist_Id,
 	err: db_pkg.DatabaseErrors,
 ) {
 
@@ -23,7 +23,7 @@ new_artist :: proc(
 	ok: bool
 
 	id := db_pkg.gen_id("artist", allocator)
-	new_id = id
+	new_id = types.Artist_Id(id)
 
 	c_id := strings.clone_to_cstring(id, allocator)
 	c_name := strings.clone_to_cstring(artist.name, allocator)
@@ -33,7 +33,7 @@ new_artist :: proc(
 		delete(c_name, allocator)
 	}
 
-	query: cstring = "INSERT INTO artist (id, name, mb_id, acoust_id) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING"
+	query: cstring = "INSERT INTO artist (id, name, mb_id, acoust_id) VALUES (?, ?, ?, ?)"
 
 	stmt: ^sqlite.Statement
 
@@ -146,4 +146,55 @@ new_artist_batch :: proc(
 	assert(rc == .Ok)
 
 	return rc
+}
+
+
+get_artist_by_name :: proc(
+	db: ^sqlite.Connection,
+	name: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Artist,
+	ok: bool,
+) {
+
+	query: cstring = "SELECT * FROM artist WHERE name = ? LIMIT 1"
+
+	stmt: ^sqlite.Statement
+
+	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
+		fmt.eprintfln("failed to prepare statement. result code: {}", rc)
+		return res, false
+	}
+
+	defer sqlite.finalize(stmt)
+
+	c_name := strings.clone_to_cstring(name, allocator)
+	defer delete(c_name)
+
+	if rc := sqlite.bind_text(
+		stmt,
+		param_idx = 1,
+		param_value = c_name,
+		param_len = c.int(len(name)),
+		free = {behaviour = .Static},
+	); rc != .Ok {
+		fmt.eprintfln("failed to bind value to artist name. result code: {}", rc)
+		return res, false
+	}
+
+	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
+
+	artist: types.Artist
+
+	for sqlite.step(stmt) == .Row {
+
+		artist = types.Artist {
+			id   = types.Artist_Id(strings.clone_from(sqlite.column_text(stmt, 0))),
+			name = strings.clone_from(sqlite.column_text(stmt, 1)),
+		}
+
+	}
+
+	return artist, true
 }

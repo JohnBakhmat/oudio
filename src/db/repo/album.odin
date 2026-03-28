@@ -182,26 +182,18 @@ get_album_by_title :: proc(
 
 	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
 
-	albums := make([dynamic]types.Album, 0, 1)
-	// defer {
-	// 	for album in albums {
-	// 		delete(string(album.id))
-	// 		delete(album.title)
-	// 	}
-	// 	delete_dynamic_array(albums)
-	// }
+	album: types.Album
 
 	for sqlite.step(stmt) == .Row {
 
-		album := types.Album {
+		album = types.Album {
 			id    = types.Album_Id(strings.clone_from(sqlite.column_text(stmt, 0))),
 			title = strings.clone_from(sqlite.column_text(stmt, 1)),
 		}
 
-		append(&albums, album)
 	}
 
-	return albums[0], true
+	return album, true
 }
 
 get_album_by_id :: proc(
@@ -243,8 +235,7 @@ get_album_by_id :: proc(
 	albums := make([dynamic]types.Album, 0, 1)
 	defer {
 		for album in albums {
-			delete(string(album.id))
-			delete(album.title)
+			types.delete_album(album)
 		}
 		delete_dynamic_array(albums)
 	}

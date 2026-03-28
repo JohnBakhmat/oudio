@@ -20,6 +20,20 @@ Artist :: struct {
 	mb_id:     Maybe(string), // MUSICBRAINZ_ARTISTID,
 }
 
+delete_artist :: proc(artist: Artist, allocator := context.allocator) {
+	delete(string(artist.id))
+	delete(artist.name)
+
+	if acoust_id, ok := artist.acoust_id.?; ok {
+		delete(acoust_id)
+	}
+
+	if mb_id, ok := artist.mb_id.?; ok {
+		delete(mb_id)
+	}
+}
+
+
 Album :: struct {
 	id:       Album_Id,
 	title:    string,
@@ -27,9 +41,23 @@ Album :: struct {
 	mb_rg_id: Maybe(string), // MUSICBRAINZ_RELEASEGROUPID,
 }
 
+delete_album :: proc(album: Album, allocator := context.allocator) {
+	delete(string(album.id))
+	delete(album.title)
+
+	if mb_id, ok := album.mb_id.?; ok {
+		delete(mb_id)
+	}
+
+	if mb_rg_id, ok := album.mb_rg_id.?; ok {
+		delete(mb_rg_id)
+	}
+}
+
+
 // Junctions
 ArtistAlbum :: struct {
-	artist_id: string,
+	artist_id: Artist_Id,
 	album_id:  Album_Id,
 }
 

@@ -99,15 +99,25 @@ main :: proc() {
 		fmt.printfln("Flac Comment %#v, artist %#v album %#v", flac, artist, album)
 
 		new_album_id, album_err := db.new_album(db_conn, album)
+		is_new_album := true
 		defer delete(string(new_album_id))
+
 		assert(album_err == .None || album_err == .UniqueConstraint)
+
 		fmt.printfln("\n\nAlbum Err %v", album_err)
 
 		if (album_err == .UniqueConstraint) {
+			is_new_album = false
 			fmt.printfln("Sync, album unique constraint")
 			existing_album, existing_album_ok := db.get_album_by_title(db_conn, album.title)
+
 			assert(existing_album_ok)
+
+			defer types.delete_album(existing_album)
+
 			fmt.printfln("Existing Album %v", existing_album)
+
+			delete(string(new_album_id))
 			new_album_id = types.Album_Id(strings.clone(string(existing_album.id)))
 		}
 
@@ -115,11 +125,32 @@ main :: proc() {
 		fmt.printfln("New album |%v| with id |%v|", album.title, new_album_id)
 
 		new_artist_id, artist_err := db.new_artist(db_conn, artist)
-		defer delete(new_artist_id)
+
+		is_new_artist := true
+
+		defer delete(string(new_artist_id))
 		assert(artist_err == .None || artist_err == .UniqueConstraint)
+
 		fmt.printfln("New artist |%v| with id |%v|", artist.name, new_artist_id)
 
-		if (flac.album_artist == artist.name) {
+		if (artist_err == .UniqueConstraint) {
+			is_new_artist = false
+
+			fmt.printfln("Sync, artist unique constraint")
+			existing_artist, existing_artist_ok := db.get_artist_by_name(db_conn, artist.name)
+
+			assert(existing_artist_ok)
+
+			defer types.delete_artist(existing_artist)
+
+			fmt.printfln("Existing artist %v", existing_artist)
+
+			delete(string(new_artist_id))
+			new_artist_id = types.Artist_Id(strings.clone(string(existing_artist.id)))
+		}
+
+
+		if (flac.album_artist == artist.name && (is_new_artist || is_new_album)) {
 			artist_album := types.ArtistAlbum {
 				album_id  = new_album_id,
 				artist_id = new_artist_id,

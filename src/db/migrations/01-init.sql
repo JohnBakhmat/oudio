@@ -25,6 +25,7 @@ CREATE TABLE track (
 	mb_id TEXT,
 	album_id TEXT NOT NULL,
 
+	UNIQUE(title, track_number, album_id)
 	FOREIGN KEY(album_id) REFERENCES album(id) ON DELETE CASCADE
 );
 

@@ -13,6 +13,16 @@ Track :: struct {
 	album_id:     Album_Id,
 }
 
+delete_track :: proc(track: Track, allocator := context.allocator) {
+	delete(string(track.id))
+	delete(string(track.album_id))
+	delete(track.title)
+
+	if mb_id, ok := track.mb_id.?; ok {
+		delete(mb_id)
+	}
+}
+
 Artist :: struct {
 	id:        Artist_Id,
 	name:      string,

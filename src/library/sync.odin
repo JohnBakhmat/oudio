@@ -96,69 +96,42 @@ main :: proc() {
 			mb_id = flac.mb_artist_id,
 		}
 
+
 		fmt.printfln("Flac Comment %#v, artist %#v album %#v", flac, artist, album)
 
-		new_album_id, album_err := db.new_album(db_conn, album)
-		is_new_album := true
+		new_album_id, new_album_ok := db.get_or_create_album(db_conn, album)
 		defer delete(string(new_album_id))
-
-		assert(album_err == .None || album_err == .UniqueConstraint)
-
-		fmt.printfln("\n\nAlbum Err %v", album_err)
-
-		if (album_err == .UniqueConstraint) {
-			is_new_album = false
-			fmt.printfln("Sync, album unique constraint")
-			existing_album, existing_album_ok := db.get_album_by_title(db_conn, album.title)
-
-			assert(existing_album_ok)
-
-			defer types.delete_album(existing_album)
-
-			fmt.printfln("Existing Album %v", existing_album)
-
-			delete(string(new_album_id))
-			new_album_id = types.Album_Id(strings.clone(string(existing_album.id)))
-		}
-
+		assert(new_album_ok)
 
 		fmt.printfln("New album |%v| with id |%v|", album.title, new_album_id)
 
-		new_artist_id, artist_err := db.new_artist(db_conn, artist)
-
-		is_new_artist := true
-
+		new_artist_id, new_artist_ok := db.get_or_create_artist(db_conn, artist)
 		defer delete(string(new_artist_id))
-		assert(artist_err == .None || artist_err == .UniqueConstraint)
-
-		fmt.printfln("New artist |%v| with id |%v|", artist.name, new_artist_id)
-
-		if (artist_err == .UniqueConstraint) {
-			is_new_artist = false
-
-			fmt.printfln("Sync, artist unique constraint")
-			existing_artist, existing_artist_ok := db.get_artist_by_name(db_conn, artist.name)
-
-			assert(existing_artist_ok)
-
-			defer types.delete_artist(existing_artist)
-
-			fmt.printfln("Existing artist %v", existing_artist)
-
-			delete(string(new_artist_id))
-			new_artist_id = types.Artist_Id(strings.clone(string(existing_artist.id)))
-		}
+		assert(new_artist_ok)
 
 
-		if (flac.album_artist == artist.name && (is_new_artist || is_new_album)) {
+		if (flac.album_artist == artist.name) {
 			artist_album := types.ArtistAlbum {
 				album_id  = new_album_id,
 				artist_id = new_artist_id,
 			}
 
 			artist_album_err := db.new_artist_album(db_conn, artist_album)
-			assert(artist_err == .None || artist_err == .UniqueConstraint)
-
+			assert(artist_album_err == .None || artist_album_err == .UniqueConstraint)
 		}
+
+
+		track := types.Track {
+			id           = "",
+			title        = flac.title,
+			track_number = flac.track_number,
+			album_id     = new_album_id,
+		}
+
+
+		new_track_id, new_track_ok := db.get_or_create_track(db_conn, track)
+		defer delete(string(new_track_id))
+		assert(new_track_ok)
+
 	}
 }

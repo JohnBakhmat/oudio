@@ -198,3 +198,40 @@ get_artist_by_name :: proc(
 
 	return artist, true
 }
+
+
+get_or_create_artist :: proc(
+	db: ^sqlite.Connection,
+	artist: types.Artist,
+	allocator := context.allocator,
+) -> (
+	res: types.Artist_Id,
+	ok: bool,
+) {
+
+	new_artist_id, new_artist_err := new_artist(db, artist)
+
+	if (new_artist_err == .None || new_artist_err == .UniqueConstraint) == false {
+		return "", false
+	}
+
+	fmt.printfln("New artist |%v| with id |%v|", artist.name, new_artist_id)
+
+	if (new_artist_err == .UniqueConstraint) {
+
+		fmt.printfln("Sync, artist unique constraint")
+		existing_artist, existing_artist_ok := get_artist_by_name(db, artist.name)
+
+		assert(existing_artist_ok)
+
+		defer types.delete_artist(existing_artist)
+
+		fmt.printfln("Existing artist %v", existing_artist)
+
+		delete(string(new_artist_id))
+		new_artist_id = types.Artist_Id(strings.clone(string(existing_artist.id)))
+	}
+
+	return new_artist_id, true
+
+}

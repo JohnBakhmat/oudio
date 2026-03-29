@@ -252,3 +252,37 @@ get_album_by_id :: proc(
 
 	return albums[0], true
 }
+
+
+get_or_create_album :: proc(
+	db: ^sqlite.Connection,
+	album: types.Album,
+	allocator := context.allocator,
+) -> (
+	res: types.Album_Id,
+	ok: bool,
+) {
+	new_album_id, new_album_err := new_album(db, album)
+
+	if (new_album_err == .None || new_album_err == .UniqueConstraint) == false {
+		return "", false
+	}
+
+	fmt.printfln("Album Err %v", new_album_err)
+
+	if (new_album_err == .UniqueConstraint) {
+		fmt.printfln("Sync, album unique constraint")
+		existing_album, existing_album_ok := get_album_by_title(db, album.title)
+
+		assert(existing_album_ok)
+
+		defer types.delete_album(existing_album)
+
+		fmt.printfln("Existing Album %v", existing_album)
+
+		delete(string(new_album_id))
+		new_album_id = types.Album_Id(strings.clone(string(existing_album.id)))
+	}
+
+	return new_album_id, true
+}

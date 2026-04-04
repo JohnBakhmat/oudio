@@ -18,103 +18,46 @@ new_album :: proc(
 ) {
 
 	fmt.printfln("New Album: %#v", album)
-	ok: bool
 
 	id := db_pkg.gen_id("album", allocator)
 	new_id = types.Album_Id(id)
-	c_id := strings.clone_to_cstring(id, allocator)
-	c_title := strings.clone_to_cstring(album.title, allocator)
-
-	defer {
-		delete(c_id, allocator)
-		delete(c_title, allocator)
-	}
-
-	query: cstring = "INSERT INTO album (id, title, mb_id, mb_rg_id) VALUES (?, ?, ?, ?)"
-
-	stmt: ^sqlite.Statement
-
-	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
-		return new_id, .UnknownError
-	}
-	defer sqlite.finalize(stmt)
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 1,
-		param_value = c_id,
-		param_len = c.int(len(id)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to ArtistId. result code: {}", rc)
-		return new_id, .UnknownError
-	}
 
 
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 2,
-		param_value = c_title,
-		param_len = c.int(len(album.title)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to artist title. result code: {}", rc)
-		return new_id, .UnknownError
-	}
-
-
-	c_mb_id, c_mb_rg_id: cstring
-	defer delete(c_mb_id, allocator)
-	defer delete(c_mb_rg_id, allocator)
-
+	mb_id_value: sa.Query_Param_Value
 	if mb_id, ok := album.mb_id.?; ok {
-		c_mb_id = strings.clone_to_cstring(mb_id, allocator)
-		fmt.printfln("%s %s", mb_id, c_mb_id)
-
-		if rc := sqlite.bind_text(
-			stmt,
-			param_idx = 3,
-			param_value = c_mb_id,
-			param_len = c.int(len(mb_id)),
-			free = {behaviour = .Static},
-		); rc != .Ok {
-			fmt.eprintfln("failed to bind value to mb_id. result code: {}", rc)
-			return new_id, .UnknownError
-		}
-
+		mb_id_value = mb_id
 	}
 
-
+	mb_rg_id_value: sa.Query_Param_Value
 	if mb_rg_id, ok := album.mb_rg_id.?; ok {
-		c_mb_rg_id = strings.clone_to_cstring(mb_rg_id, allocator)
-
-		if rc := sqlite.bind_text(
-			stmt,
-			param_idx = 4,
-			param_value = c_mb_rg_id,
-			param_len = c.int(len(mb_rg_id)),
-			free = {behaviour = .Static},
-		); rc != .Ok {
-			fmt.eprintfln("failed to bind value to mb_rg_id. result code: {}", rc)
-			return new_id, .UnknownError
-		}
-
+		mb_rg_id_value = mb_rg_id
 	}
 
+	query := "INSERT INTO album (id, title, mb_id, mb_rg_id) VALUES (?, ?, ?, ?)"
 
-	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
+	rc := sa.execute(
+		db,
+		query,
+		{
+			{index = 1, value = id},
+			{index = 2, value = album.title},
+			{index = 3, value = mb_id_value},
+			{index = 4, value = mb_rg_id_value},
+		},
+	)
 
+	fmt.printfln("\n\n\n\nRC:%v \n\n\n\n", rc)
 
-	rc := sqlite.step(stmt)
-	fmt.printfln("Step RC: %v", rc)
-	if (rc == .Constraint) {
+	#partial switch rc {
+	case .Constraint:
 		return new_id, .UniqueConstraint
-	}
-	if (rc != .Done) {
+	case .Done, .Ok:
+		return new_id, .None
+	case:
+		fmt.eprintfln("new_album failed with result code: %v", rc)
 		return new_id, .UnknownError
 	}
 
-	return new_id, .None
 }
 
 

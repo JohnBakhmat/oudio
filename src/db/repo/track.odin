@@ -19,109 +19,38 @@ new_track :: proc(
 ) {
 
 	fmt.printfln("New Track: %#v", track)
-	ok: bool
 
 	id := db_pkg.gen_id("track", allocator)
 	new_id = types.Track_Id(id)
 
-	c_id := strings.clone_to_cstring(id, allocator)
-	c_title := strings.clone_to_cstring(track.title, allocator)
-	c_album_id := strings.clone_to_cstring(string(track.album_id), allocator)
-
-	defer {
-		delete(c_id, allocator)
-		delete(c_title, allocator)
-		delete(c_album_id, allocator)
-	}
-
-	query: cstring = "INSERT INTO track (id, title, album_id, track_number, mb_id) VALUES (?, ?, ?, ?, ?)"
-
-	stmt: ^sqlite.Statement
-
-	fmt.println("before prepare")
-
-	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
-		fmt.eprintfln("prepare error %v", rc)
-		return new_id, .UnknownError
-	}
-	defer sqlite.finalize(stmt)
-
-	fmt.println("after prepare")
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 1,
-		param_value = c_id,
-		param_len = c.int(len(id)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to TrackId. result code: {}", rc)
-		return new_id, .UnknownError
-	}
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 2,
-		param_value = c_title,
-		param_len = c.int(len(track.title)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to track title. result code: {}", rc)
-		return new_id, .UnknownError
-	}
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 3,
-		param_value = c_album_id,
-		param_len = c.int(len(track.album_id)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to track album id. result code: {}", rc)
-		return new_id, .UnknownError
-	}
-
-
-	if rc := sqlite.bind_int(stmt, param_idx = 4, param_value = i32(track.track_number));
-	   rc != .Ok {
-		fmt.eprintfln("failed to bind value to track album id. result code: {}", rc)
-		return new_id, .UnknownError
-	}
-
-
-	c_mb_id: cstring
-	defer delete(c_mb_id, allocator)
-
+	mb_id_value: sa.Query_Param_Value
 	if mb_id, ok := track.mb_id.?; ok {
-		c_mb_id = strings.clone_to_cstring(mb_id, allocator)
-		fmt.printfln("%s %s", mb_id, c_mb_id)
-
-		if rc := sqlite.bind_text(
-			stmt,
-			param_idx = 5,
-			param_value = c_mb_id,
-			param_len = c.int(len(mb_id)),
-			free = {behaviour = .Static},
-		); rc != .Ok {
-			fmt.eprintfln("failed to bind value to mb_id. result code: {}", rc)
-			return new_id, .UnknownError
-		}
+		mb_id_value = mb_id
 	}
 
+	rc := sa.execute(
+		db,
+		"INSERT INTO track (id, title, album_id, track_number, mb_id) VALUES (?, ?, ?, ?, ?)",
+		{
+			{index = 1, value = id},
+			{index = 2, value = track.title},
+			{index = 3, value = string(track.album_id)},
+			{index = 4, value = i32(track.track_number)},
+			{index = 5, value = mb_id_value},
+		},
+	)
 
-	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
-
-	rc := sqlite.step(stmt)
-	fmt.printfln("Step RC: %v", rc)
-	if (rc == .Constraint) {
+	#partial switch rc {
+	case .Constraint:
 		return new_id, .UniqueConstraint
-	}
-	if (rc != .Done) {
+	case .Done, .Ok:
+		return new_id, .None
+	case:
+		fmt.eprintfln("new_track2 failed with result code: %v", rc)
 		return new_id, .UnknownError
 	}
-
-	return new_id, .None
 }
+
 
 get_track_by_title :: proc(
 	db: ^sqlite.Connection,

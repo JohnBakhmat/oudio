@@ -1,7 +1,7 @@
 
-- [ ] On unique constraint for album and artist, add select query and return existing id instead of generated id
+- [x] On unique constraint for album and artist, add select query and return existing id instead of generated id
 - [ ] File table
-- [ ] Track table
+- [x] Track table
 - [ ] Track <-> Artist
 - [ ] Track - File
 

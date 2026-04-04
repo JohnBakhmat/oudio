@@ -8,7 +8,7 @@ import "core:c"
 import "core:fmt"
 import "core:strings"
 
-new_artist_album :: proc(
+new_artist_album1 :: proc(
 	db: ^sqlite.Connection,
 	a: types.ArtistAlbum,
 	allocator := context.allocator,
@@ -67,6 +67,36 @@ new_artist_album :: proc(
 		return .UniqueConstraint
 	}
 	if (rc != .Done) {
+		return .UnknownError
+	}
+
+	return .None
+
+}
+
+
+new_artist_album :: proc(
+	db: ^sqlite.Connection,
+	a: types.ArtistAlbum,
+	allocator := context.allocator,
+) -> db_pkg.DatabaseErrors {
+
+	fmt.printfln("New Artist<->Album $#v", a)
+
+	query := "INSERT INTO artist_album (artist_id, album_id) VALUES (?, ?) ON CONFLICT DO NOTHING"
+
+	rc := sa.execute(
+		db,
+		query,
+		{{index = 1, value = string(a.artist_id)}, {index = 2, value = string(a.album_id)}},
+	)
+
+
+	fmt.printfln("Step RC: %v", rc)
+	if (rc == .Constraint) {
+		return .UniqueConstraint
+	}
+	if (rc != .Done && rc != .Ok) {
 		return .UnknownError
 	}
 

@@ -1,107 +1,85 @@
-
 package repo
 
 import db_pkg "../"
 import sqlite "../../../vendor/sqlite"
 import types "../../core"
-import "core:fmt"
-import "core:mem"
 import "core:testing"
-
 
 @(test)
 should_create_new_album :: proc(t: ^testing.T) {
+	db := open_test_db(t)
+	defer sqlite.close(db)
 
+	title := db_pkg.gen_id("album_title")
+	defer delete(title)
 
-	track: mem.Tracking_Allocator
-	mem.tracking_allocator_init(&track, context.allocator)
-	context.allocator = mem.tracking_allocator(&track)
-	defer {
-		if len(track.allocation_map) > 0 {
-			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
-			for _, entry in track.allocation_map {
-				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
-			}
-		}
-		if len(track.bad_free_array) > 0 {
-			fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-			for entry in track.bad_free_array {
-				fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
-			}
-		}
-		mem.tracking_allocator_destroy(&track)
-	}
-
-
-	db: ^sqlite.Connection
-
-	if rc := sqlite.open(db_pkg.db_url, &db); rc != .Ok {
-		fmt.panicf("failed to open database. result code {}", rc)
-	}
-	fmt.printfln("connected to database")
-
-	defer {
-		sqlite.close(db)
-		fmt.printfln("\nconnection closed")
-	}
-
-	album := types.Album {
-		id       = "test",
-		title    = "Test title",
-		mb_id    = "asdf",
-		mb_rg_id = "asdf",
-	}
-
+	album := types.Album{title = title}
 	new_id, err := new_album(db, album)
-	fmt.printfln("Error: %v", err)
 	defer delete(string(new_id))
+
 	testing.expect(t, err == .None)
-
+	testing.expect(t, len(string(new_id)) > 0)
 }
-
 
 @(test)
 should_get_album_by_id :: proc(t: ^testing.T) {
+	db := open_test_db(t)
+	defer sqlite.close(db)
 
+	title := db_pkg.gen_id("album_by_id")
+	defer delete(title)
 
-	track: mem.Tracking_Allocator
-	mem.tracking_allocator_init(&track, context.allocator)
-	context.allocator = mem.tracking_allocator(&track)
-	defer {
-		if len(track.allocation_map) > 0 {
-			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
-			for _, entry in track.allocation_map {
-				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
-			}
-		}
-		if len(track.bad_free_array) > 0 {
-			fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
-			for entry in track.bad_free_array {
-				fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
-			}
-		}
-		mem.tracking_allocator_destroy(&track)
-	}
+	album := types.Album{title = title}
+	new_id, err := new_album(db, album)
+	testing.expect(t, err == .None)
 
+	found, ok := get_album_by_id(db, string(new_id))
+	defer if ok do types.delete_album(found)
+	defer delete(string(new_id))
 
-	db: ^sqlite.Connection
-
-	if rc := sqlite.open(db_pkg.db_url, &db); rc != .Ok {
-		fmt.panicf("failed to open database. result code {}", rc)
-	}
-	fmt.printfln("connected to database")
-
-	defer {
-		sqlite.close(db)
-		fmt.printfln("\nconnection closed")
-	}
-
-
-	input := "album_019cf0fc-b57a-7f58-a298-ad3166101dd9"
-
-	album, ok := get_album_by_id(db, input)
 	testing.expect(t, ok)
-	testing.expect(t, album.title == "Test title")
+	testing.expect(t, found.title == title)
+	testing.expect(t, string(found.id) == string(new_id))
+}
 
-	fmt.printfln("Album: %#v", album)
+@(test)
+should_get_album_by_title :: proc(t: ^testing.T) {
+	db := open_test_db(t)
+	defer sqlite.close(db)
+
+	title := db_pkg.gen_id("album_lookup")
+	defer delete(title)
+
+	album := types.Album{title = title}
+	new_id, err := new_album(db, album)
+	testing.expect(t, err == .None)
+	defer delete(string(new_id))
+
+	found, ok := get_album_by_title(db, title)
+	defer if ok do types.delete_album(found)
+
+	testing.expect(t, ok)
+	testing.expect(t, found.title == title)
+}
+
+@(test)
+should_get_or_create_album :: proc(t: ^testing.T) {
+	db := open_test_db(t)
+	defer sqlite.close(db)
+
+	title := db_pkg.gen_id("album_upsert")
+	defer delete(title)
+
+	album := types.Album{title = title}
+
+	first_id, first_ok := get_or_create_album(db, album)
+	testing.expect(t, first_ok)
+	testing.expect(t, len(string(first_id)) > 0)
+
+	second_id, second_ok := get_or_create_album(db, album)
+	testing.expect(t, second_ok)
+	testing.expect(t, string(second_id) == string(first_id))
+
+	delete(string(first_id))
+	delete(string(second_id))
 }

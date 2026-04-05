@@ -10,6 +10,7 @@ import "core:path/filepath"
 import "core:strconv"
 import "core:strings"
 import "core:testing"
+import app_core "../core"
 
 ReadError :: enum {
 	UnknownError,
@@ -20,6 +21,7 @@ ReadError :: enum {
 	Invalid_Vendor_String,
 	Unable_To_Read_Field_Length,
 }
+
 
 VorbisComment :: struct {
 	title:        string,
@@ -60,7 +62,7 @@ check_is_flac :: proc(r: ^bufio.Reader) -> bool {
 		return false
 	}
 
-	fmt.printfln("Marker: %v", string(marker))
+	app_core.log_debugf("%s %s", app_core.colorize("marker", app_core.ANSI_CYAN), app_core.colorize(string(marker), app_core.ANSI_GREEN))
 
 	if string(marker) != "fLaC" {
 		return false
@@ -82,17 +84,11 @@ Header :: struct {
 }
 
 parse_header :: proc(arr: []byte) -> Header {
-	fmt.printfln("parse_header called, len=%d, data=%v", len(arr), arr)
+	app_core.log_debugf("%s len=%d data=%v", app_core.colorize("parse_header", app_core.ANSI_CYAN), len(arr), arr)
 
 	assert(len(arr) >= 4)
 
-	fmt.printfln(
-		"Before return - arr[0]=%d arr[1]=%d arr[2]=%d arr[3]=%d",
-		arr[0],
-		arr[1],
-		arr[2],
-		arr[3],
-	)
+	app_core.log_debugf("%s b0=%d b1=%d b2=%d b3=%d", app_core.colorize("header-bytes", app_core.ANSI_DIM), arr[0], arr[1], arr[2], arr[3])
 
 	return Header {
 		is_last = arr[0] & 0x80 != 0,
@@ -102,7 +98,7 @@ parse_header :: proc(arr: []byte) -> Header {
 }
 
 parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError) {
-	fmt.printfln("Vorbis Comment Bytes: %d", len(arr))
+	app_core.log_debugf("%s %s", app_core.colorize("vorbis-bytes", app_core.ANSI_CYAN), app_core.colorize(fmt.tprintf("%d", len(arr)), app_core.ANSI_GREEN))
 
 	length := u32(len(arr))
 	cursor: u32 = 0
@@ -119,7 +115,7 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 	if (!ok) {
 		return VorbisComment{}, .UnableToReadVendorString
 	}
-	fmt.printfln("Vendor string length %d", vendor_str_len)
+	app_core.log_debugf("%s %s", app_core.colorize("vendor-length", app_core.ANSI_CYAN), app_core.colorize(fmt.tprintf("%d", vendor_str_len), app_core.ANSI_GREEN))
 	cursor += 4
 
 	if (vendor_str_len > MAX_FIELD_LENGTH || cursor + vendor_str_len > length) {
@@ -128,7 +124,7 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 
 	// Read vendor string
 	vendor_str := string(arr[cursor:cursor + vendor_str_len])
-	fmt.printfln("Vendor string %s", vendor_str)
+	app_core.log_debugf("%s %s", app_core.colorize("vendor", app_core.ANSI_CYAN), app_core.colorize(vendor_str, app_core.ANSI_GREEN))
 	cursor += vendor_str_len
 
 	//Read number of fields
@@ -139,7 +135,7 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 	if (!ok) {
 		return VorbisComment{}, .UnknownError
 	}
-	fmt.printfln("Number of fields %d", num_fields)
+	app_core.log_debugf("%s %s", app_core.colorize("fields", app_core.ANSI_CYAN), app_core.colorize(fmt.tprintf("%d", num_fields), app_core.ANSI_GREEN))
 	if (num_fields > MAX_VORBIS_FIELDS) {
 		return VorbisComment{}, .UnknownError
 	}
@@ -165,12 +161,12 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 		if (field_length > MAX_FIELD_LENGTH || cursor + field_length > length) {
 			return VorbisComment{}, .UnknownError
 		}
-		fmt.printfln("Field length %d", field_length)
+		app_core.log_debugf("%s %s", app_core.colorize("field-length", app_core.ANSI_DIM), app_core.colorize(fmt.tprintf("%d", field_length), app_core.ANSI_GREEN))
 
 		cursor += 4
 
 		field := string(arr[cursor:cursor + field_length])
-		fmt.printfln("field %v", field)
+		app_core.log_debugf("%s %s", app_core.colorize("field", app_core.ANSI_YELLOW), app_core.colorize(field, app_core.ANSI_MAGENTA))
 
 		pair := strings.split(field, "=")
 		defer delete(pair)
@@ -180,7 +176,7 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 		key := pair[0]
 		value := pair[1]
 
-		fmt.printfln("key |%v| value |%v| ", key, value)
+		app_core.log_debugf("%s %s   %s %s", app_core.colorize("key", app_core.ANSI_CYAN), app_core.colorize(key, app_core.ANSI_YELLOW), app_core.colorize("value", app_core.ANSI_CYAN), app_core.colorize(value, app_core.ANSI_GREEN))
 
 
 		switch key {
@@ -214,7 +210,7 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 		comment.album_artist = comment.artists[0]
 	}
 
-	fmt.printfln("Comment %#v", comment)
+	app_core.log_infof("%s %#v", app_core.colorize("parsed-comment", app_core.ANSI_CYAN), comment)
 
 	return comment, nil
 }
@@ -242,22 +238,21 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 			return VorbisComment{}, .UnknownError
 		}
 
-		fmt.printfln("HeaderBytes: %v", headerBytes)
+		app_core.log_debugf("%s %v", app_core.colorize("header-bytes", app_core.ANSI_DIM), headerBytes)
 
-		fmt.printfln("About to call parse_header")
 		header := parse_header(headerBytes)
-		fmt.printfln("parse_header returned successfully")
 
-		fmt.printfln(
-			"Parsed header: stream_info=%d, length=%d, is_last=%v",
-			header.stream_info,
-			header.length,
+		app_core.log_debugf(
+			"%s type=%s length=%s is_last=%v",
+			app_core.colorize("header", app_core.ANSI_CYAN),
+			app_core.colorize(fmt.tprintf("%d", header.stream_info), app_core.ANSI_YELLOW),
+			app_core.colorize(fmt.tprintf("%d", header.length), app_core.ANSI_GREEN),
 			header.is_last,
 		)
 
 
 		if (header.stream_info == VORBIS_COMMENT) {
-			fmt.printfln("Found Vorbis Comment")
+			app_core.log_infof("%s", app_core.colorize("found vorbis comment block", app_core.ANSI_CYAN))
 
 			vorbisCommentBytes := make([]byte, header.length)
 			defer delete(vorbisCommentBytes)
@@ -266,7 +261,7 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 
 			vn, verr := io.read_full(s, vorbisCommentBytes)
 			if verr != nil || cast(u32)vn != header.length {
-				fmt.printfln("Failed to read voribs comment as bytes %v %d", verr, vn)
+				app_core.log_errorf("failed reading vorbis comment bytes err=%v read=%d expected=%d", verr, vn, header.length)
 				return VorbisComment{}, .UnknownError
 			}
 
@@ -278,18 +273,18 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 		}
 
 		skip := header.length
-		fmt.printfln("Skip: %i", skip)
+		app_core.log_debugf("%s %s", app_core.colorize("skip", app_core.ANSI_DIM), app_core.colorize(fmt.tprintf("%d", skip), app_core.ANSI_GREEN))
 		x, xerr := bufio.reader_discard(&r, int(skip))
 		if xerr != nil {
-			fmt.printfln("Discard error: %v", xerr)
+			app_core.log_errorf("discard error: %v", xerr)
 			return VorbisComment{}, .UnknownError
 		}
 		if x != int(skip) {
-			fmt.printfln("Discard incomplete: wanted %d, got %d", skip, x)
+			app_core.log_errorf("discard incomplete: wanted %d, got %d", skip, x)
 			// Need to handle partial discard
 		}
 
-		fmt.printfln("Discarded: %i", x)
+		app_core.log_debugf("%s %d", app_core.colorize("discarded", app_core.ANSI_DIM), x)
 
 	}
 

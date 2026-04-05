@@ -4,7 +4,6 @@ import db_pkg "../"
 import sqlite "../../../vendor/sqlite"
 import sa "../../../vendor/sqlite/addons"
 import types "../../core"
-import "core:c"
 import "core:fmt"
 import "core:strings"
 
@@ -61,74 +60,60 @@ get_track_by_title :: proc(
 	res: types.Track,
 	ok: bool,
 ) {
-	query_with_album: cstring = "SELECT * FROM track WHERE title = ? AND album_id = ? LIMIT 1"
-	query_without_album: cstring = "SELECT * FROM track WHERE title = ? LIMIT 1"
-	query := query_without_album
-	use_album_filter := false
-	album_id_value := ""
+	Track_Row :: struct {
+		id:           string `sqlite:"id"`,
+		title:        string `sqlite:"title"`,
+		track_number: i32 `sqlite:"track_number"`,
+		mb_id:        string `sqlite:"mb_id"`,
+		album_id:     string `sqlite:"album_id"`,
+	}
+
+	rows := make([dynamic]Track_Row, 0, 1, allocator)
+	defer {
+		for row in rows {
+			delete(row.id)
+			delete(row.title)
+			delete(row.mb_id)
+			delete(row.album_id)
+		}
+		delete_dynamic_array(rows)
+	}
+
+	rc := sqlite.Result_Code.Ok
 
 	if v, has_album := album_id.?; has_album {
-		query = query_with_album
-		use_album_filter = true
-		album_id_value = string(v)
+		rc = sa.query(
+			db,
+			&rows,
+			"SELECT id, title, track_number, COALESCE(mb_id, '') AS mb_id, album_id FROM track WHERE title = ? AND album_id = ? LIMIT 1",
+			{
+				{index = 1, value = title},
+				{index = 2, value = string(v)},
+			},
+		)
+	} else {
+		rc = sa.query(
+			db,
+			&rows,
+			"SELECT id, title, track_number, COALESCE(mb_id, '') AS mb_id, album_id FROM track WHERE title = ? LIMIT 1",
+			{{index = 1, value = title}},
+		)
 	}
 
-	stmt: ^sqlite.Statement
-
-	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
-		fmt.eprintfln("failed to prepare statement. result code: {}", rc)
+	if rc != .Ok || len(rows) == 0 {
 		return res, false
 	}
 
-	defer sqlite.finalize(stmt)
-
-	c_title := strings.clone_to_cstring(title, allocator)
-	defer delete(c_title)
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 1,
-		param_value = c_title,
-		param_len = c.int(len(title)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to track title. result code: {}", rc)
-		return res, false
-	}
-
-	c_album_id: cstring
-	defer delete(c_album_id)
-
-	if use_album_filter {
-		c_album_id = strings.clone_to_cstring(album_id_value, allocator)
-
-		if rc := sqlite.bind_text(
-			stmt,
-			param_idx = 2,
-			param_value = c_album_id,
-			param_len = c.int(len(album_id_value)),
-			free = {behaviour = .Static},
-		); rc != .Ok {
-			fmt.eprintfln("failed to bind value to album_id. result code: {}", rc)
-			return res, false
-		}
-	}
-
-	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
-
-	if sqlite.step(stmt) != .Row {
-		return res, false
-	}
-
+	row := rows[0]
 	track := types.Track {
-		id           = types.Track_Id(strings.clone_from(sqlite.column_text(stmt, 0))),
-		title        = strings.clone_from(sqlite.column_text(stmt, 1)),
-		track_number = u8(sqlite.column_int(stmt, 2)),
-		album_id     = types.Album_Id(strings.clone_from(sqlite.column_text(stmt, 4))),
+		id           = types.Track_Id(strings.clone(row.id, allocator)),
+		title        = strings.clone(row.title, allocator),
+		track_number = u8(row.track_number),
+		album_id     = types.Album_Id(strings.clone(row.album_id, allocator)),
 	}
 
-	if mb_id_ptr := sqlite.column_text(stmt, 3); mb_id_ptr != nil {
-		track.mb_id = strings.clone_from(mb_id_ptr)
+	if len(row.mb_id) > 0 {
+		track.mb_id = strings.clone(row.mb_id, allocator)
 	}
 
 	return track, true

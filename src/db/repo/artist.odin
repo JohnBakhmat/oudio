@@ -4,11 +4,8 @@ import db_pkg "../"
 import sqlite "../../../vendor/sqlite"
 import sa "../../../vendor/sqlite/addons"
 import types "../../core"
-import "core:c"
 import "core:fmt"
-import "core:mem"
 import "core:strings"
-import "core:testing"
 
 new_artist :: proc(
 	db: ^sqlite.Connection,
@@ -102,43 +99,35 @@ get_artist_by_name :: proc(
 	res: types.Artist,
 	ok: bool,
 ) {
-
-	query: cstring = "SELECT * FROM artist WHERE name = ? LIMIT 1"
-
-	stmt: ^sqlite.Statement
-
-	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
-		fmt.eprintfln("failed to prepare statement. result code: {}", rc)
-		return res, false
+	Artist_Row :: struct {
+		id:   string `sqlite:"id"`,
+		name: string `sqlite:"name"`,
 	}
 
-	defer sqlite.finalize(stmt)
-
-	c_name := strings.clone_to_cstring(name, allocator)
-	defer delete(c_name)
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 1,
-		param_value = c_name,
-		param_len = c.int(len(name)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to artist name. result code: {}", rc)
-		return res, false
-	}
-
-	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
-
-	artist: types.Artist
-
-	for sqlite.step(stmt) == .Row {
-
-		artist = types.Artist {
-			id   = types.Artist_Id(strings.clone_from(sqlite.column_text(stmt, 0))),
-			name = strings.clone_from(sqlite.column_text(stmt, 1)),
+	rows := make([dynamic]Artist_Row, 0, 1, allocator)
+	defer {
+		for row in rows {
+			delete(row.id)
+			delete(row.name)
 		}
+		delete_dynamic_array(rows)
+	}
 
+	rc := sa.query(
+		db,
+		&rows,
+		"SELECT id, name FROM artist WHERE name = ? LIMIT 1",
+		{{index = 1, value = name}},
+	)
+
+	if rc != .Ok || len(rows) == 0 {
+		return res, false
+	}
+
+	row := rows[0]
+	artist := types.Artist {
+		id   = types.Artist_Id(strings.clone(row.id, allocator)),
+		name = strings.clone(row.name, allocator),
 	}
 
 	return artist, true

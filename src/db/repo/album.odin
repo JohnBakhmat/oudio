@@ -4,7 +4,6 @@ import db_pkg "../"
 import sqlite "../../../vendor/sqlite"
 import sa "../../../vendor/sqlite/addons"
 import types "../../core"
-import "core:c"
 import "core:fmt"
 import "core:strings"
 
@@ -97,43 +96,35 @@ get_album_by_title :: proc(
 	res: types.Album,
 	ok: bool,
 ) {
-
-	query: cstring = "SELECT * FROM album WHERE title = ? LIMIT 1"
-
-	stmt: ^sqlite.Statement
-
-	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
-		fmt.eprintfln("failed to prepare statement. result code: {}", rc)
-		return res, false
+	Album_Row :: struct {
+		id:    string `sqlite:"id"`,
+		title: string `sqlite:"title"`,
 	}
 
-	defer sqlite.finalize(stmt)
-
-	c_title := strings.clone_to_cstring(title, allocator)
-	defer delete(c_title)
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 1,
-		param_value = c_title,
-		param_len = c.int(len(title)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to ArtistId. result code: {}", rc)
-		return res, false
-	}
-
-	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
-
-	album: types.Album
-
-	for sqlite.step(stmt) == .Row {
-
-		album = types.Album {
-			id    = types.Album_Id(strings.clone_from(sqlite.column_text(stmt, 0))),
-			title = strings.clone_from(sqlite.column_text(stmt, 1)),
+	rows := make([dynamic]Album_Row, 0, 1, allocator)
+	defer {
+		for row in rows {
+			delete(row.id)
+			delete(row.title)
 		}
+		delete_dynamic_array(rows)
+	}
 
+	rc := sa.query(
+		db,
+		&rows,
+		"SELECT id, title FROM album WHERE title = ? LIMIT 1",
+		{{index = 1, value = title}},
+	)
+
+	if rc != .Ok || len(rows) == 0 {
+		return res, false
+	}
+
+	row := rows[0]
+	album := types.Album {
+		id    = types.Album_Id(strings.clone(row.id, allocator)),
+		title = strings.clone(row.title, allocator),
 	}
 
 	return album, true
@@ -147,53 +138,38 @@ get_album_by_id :: proc(
 	res: types.Album,
 	ok: bool,
 ) {
-
-	query: cstring = "SELECT * FROM album WHERE id = ? LIMIT 1"
-
-	stmt: ^sqlite.Statement
-
-	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
-		fmt.eprintfln("failed to prepare statement. result code: {}", rc)
-		return res, false
+	Album_Row :: struct {
+		id:    string `sqlite:"id"`,
+		title: string `sqlite:"title"`,
 	}
 
-	defer sqlite.finalize(stmt)
-
-	c_id := strings.clone_to_cstring(id, allocator)
-	defer delete(c_id)
-
-	if rc := sqlite.bind_text(
-		stmt,
-		param_idx = 1,
-		param_value = c_id,
-		param_len = c.int(len(id)),
-		free = {behaviour = .Static},
-	); rc != .Ok {
-		fmt.eprintfln("failed to bind value to ArtistId. result code: {}", rc)
-		return res, false
-	}
-
-	fmt.printfln("prepared sql: {}\n", sqlite.expanded_sql(stmt))
-
-	albums := make([dynamic]types.Album, 0, 1)
+	rows := make([dynamic]Album_Row, 0, 1, allocator)
 	defer {
-		for album in albums {
-			types.delete_album(album)
+		for row in rows {
+			delete(row.id)
+			delete(row.title)
 		}
-		delete_dynamic_array(albums)
+		delete_dynamic_array(rows)
 	}
 
-	for sqlite.step(stmt) == .Row {
+	rc := sa.query(
+		db,
+		&rows,
+		"SELECT id, title FROM album WHERE id = ? LIMIT 1",
+		{{index = 1, value = id}},
+	)
 
-		album := types.Album {
-			id    = types.Album_Id(strings.clone_from(sqlite.column_text(stmt, 0))),
-			title = strings.clone_from(sqlite.column_text(stmt, 1)),
-		}
-
-		append(&albums, album)
+	if rc != .Ok || len(rows) == 0 {
+		return res, false
 	}
 
-	return albums[0], true
+	row := rows[0]
+	album := types.Album {
+		id    = types.Album_Id(strings.clone(row.id, allocator)),
+		title = strings.clone(row.title, allocator),
+	}
+
+	return album, true
 }
 
 

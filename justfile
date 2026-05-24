@@ -8,3 +8,6 @@ drop:
 
 sync:
 	odin run ./src/library/
+
+ui:
+	odin run ./src/main.odin -file

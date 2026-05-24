@@ -4,16 +4,24 @@ import clay "../vendor/clay-odin"
 import "core:fmt"
 import "ui"
 
+import rl "vendor:raylib"
+
 main :: proc() {
 
 	ui.setup_ui()
 
+	rl.InitWindow(ui.width, ui.height, "foo")
+	rl.SetTargetFPS(60)
 
-	render_commands := ui.root()
+	for !rl.WindowShouldClose() {
+		rl.BeginDrawing()
+		defer rl.EndDrawing()
+		rl.ClearBackground(rl.RAYWHITE)
 
-	for i in 0 ..< i32(render_commands.length) {
-		render_command := clay.RenderCommandArray_Get(&render_commands, i)
+		dt := rl.GetFrameTime()
 
-		fmt.printfln("Command %#v", render_command)
+		render_commands := ui.root(dt)
+		ui.clay_raylib_render(&render_commands)
+
 	}
 }

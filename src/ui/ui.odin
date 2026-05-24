@@ -30,11 +30,4 @@ setup_ui :: proc() {
 
 	clay.SetMeasureTextFunction(measure_text, nil)
 
-	render_commands := foo()
-
-	for i in 0 ..< i32(render_commands.length) {
-		render_command := clay.RenderCommandArray_Get(&render_commands, i)
-
-		fmt.printfln("Command %#v", render_command)
-	}
 }

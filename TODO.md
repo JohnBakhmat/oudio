@@ -8,3 +8,4 @@
 - [ ] Query Album+Artist list
 - [ ] Query Album+Artist+Track+Artist list
 
+# Layout

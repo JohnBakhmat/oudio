@@ -24,3 +24,6 @@ TEXT_BASE :: clay.TextElementConfig {
 	fontSize  = FONT_SIZE_BASE,
 	textColor = COLOR_FOREGROUND,
 }
+
+
+FONT_ID_BASE :: 69

@@ -8,10 +8,10 @@ import rl "vendor:raylib"
 
 main :: proc() {
 
-	ui.setup_ui()
-
 	rl.InitWindow(ui.width, ui.height, "foo")
 	rl.SetTargetFPS(60)
+
+	ui.setup_ui()
 
 	for !rl.WindowShouldClose() {
 		rl.BeginDrawing()

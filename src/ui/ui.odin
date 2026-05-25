@@ -49,14 +49,12 @@ setup_ui :: proc() {
 
 	clay.SetMeasureTextFunction(measure_text, nil)
 
-	font_jetbrains_path := "../../assets/JetBrainsMonoNerdFont-Regular.ttf"
 
-	font_jetbrains, test_err := filepath.join(
-		{#directory, font_jetbrains_path},
-		context.temp_allocator,
+	load_font(c.FONT_ID_BASE, 12, "assets/JetBrainsMonoNerdFont-Regular.ttf")
+	load_font(
+		c.FONT_ID_BASE_BOLD,
+		12,
+		"assets/JetBrainsMonoNerdFontMono-Bold.ttf",
 	)
-	assert(test_err == nil)
-
-	load_font(c.FONT_ID_BASE, 16, strings.clone_to_cstring(font_jetbrains))
 
 }

@@ -21,13 +21,14 @@ top_bar :: proc() {
 
 		if clay.UI(clay.ID("logo-container"))({layout = {childGap = 6}}) {
 
-			// clay.Text(
-			// 	"oudio",
-			// 	clay.TextElementConfig {
-			// 		fontSize = 12,
-			// 		textColor = c.COLOR_ACCENT,
-			// 	},
-			// )
+			clay.Text(
+				"OUDIO",
+				clay.TextElementConfig {
+					fontSize = c.FONT_SIZE_BASE,
+					textColor = c.COLOR_ACCENT,
+					fontId = c.FONT_ID_BASE_BOLD,
+				},
+			)
 		}
 	}
 

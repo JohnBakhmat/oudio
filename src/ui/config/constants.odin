@@ -26,4 +26,5 @@ TEXT_BASE :: clay.TextElementConfig {
 }
 
 
-FONT_ID_BASE :: 69
+FONT_ID_BASE :: 1
+FONT_ID_BASE_BOLD :: 2

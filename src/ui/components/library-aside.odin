@@ -32,7 +32,7 @@ library_aside :: proc() {
 			clay.Text(
 				"LIBRARY",
 				clay.TextElementConfig {
-					fontSize = 10,
+					fontSize = c.FONT_SIZE_SM,
 					textColor = c.COLOR_FOREGROUND_FADING,
 					fontId = c.FONT_ID_BASE_BOLD,
 				},
@@ -48,7 +48,7 @@ library_aside :: proc() {
 			clay.Text(
 				"albums",
 				clay.TextElementConfig {
-					fontSize = 10,
+					fontSize = c.FONT_SIZE_SM,
 					textColor = c.COLOR_FOREGROUND_FADING,
 					fontId = c.FONT_ID_BASE_BOLD,
 				},

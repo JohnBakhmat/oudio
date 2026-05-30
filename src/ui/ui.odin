@@ -50,10 +50,10 @@ setup_ui :: proc() {
 	clay.SetMeasureTextFunction(measure_text, nil)
 
 
-	load_font(c.FONT_ID_BASE, 12, "assets/JetBrainsMonoNerdFont-Regular.ttf")
+	load_font(c.FONT_ID_BASE, c.FONT_SIZE_BASE, "assets/JetBrainsMonoNerdFont-Regular.ttf")
 	load_font(
 		c.FONT_ID_BASE_BOLD,
-		12,
+		c.FONT_SIZE_BASE,
 		"assets/JetBrainsMonoNerdFontMono-Bold.ttf",
 	)
 

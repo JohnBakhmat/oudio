@@ -2,14 +2,37 @@ package ui
 
 import clay "../../vendor/clay-odin"
 import comp "./components"
-import "core:fmt"
-import rl "vendor:raylib"
 
 root :: proc(dt: f32) -> clay.ClayArray(clay.RenderCommand) {
 
 	clay.BeginLayout()
-	comp.top_bar()
 
+	if clay.UI(clay.ID("root"))(
+	clay.ElementDeclaration {
+		layout = {
+			sizing = {height = clay.SizingGrow(), width = clay.SizingGrow()},
+			layoutDirection = .TopToBottom,
+		},
+	},
+	) {
+
+		comp.top_bar()
+
+		if clay.UI(clay.ID("main"))(
+		clay.ElementDeclaration {
+			layout = {
+				sizing = {
+					height = clay.SizingGrow(),
+					width = clay.SizingGrow(),
+				},
+			},
+		},
+		) {
+
+			comp.library_aside()
+		}
+
+	}
 
 	return clay.EndLayout(dt)
 }

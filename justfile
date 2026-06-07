@@ -10,4 +10,4 @@ sync:
 	odin run ./src/library/
 
 ui:
-	odin run ./src/main.odin -file
+	odin build ./src/main.odin -file -o:none -debug -out:./build/ui && ./build/ui

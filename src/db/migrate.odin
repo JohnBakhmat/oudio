@@ -21,7 +21,8 @@ main :: proc() {
 		last := args[1]
 
 		if (len(last) > 0 &&
-			   (strings.has_suffix(last, ".db") || strings.has_suffix(last, ".sqlite"))) {
+			   (strings.has_suffix(last, ".db") ||
+					   strings.has_suffix(last, ".sqlite"))) {
 
 			db_url = strings.clone_to_cstring(last)
 		}
@@ -33,13 +34,19 @@ main :: proc() {
 	context.allocator = mem.tracking_allocator(&track)
 	defer {
 		if len(track.allocation_map) > 0 {
-			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
+			fmt.eprintf(
+				"=== %v allocations not freed: ===\n",
+				len(track.allocation_map),
+			)
 			for _, entry in track.allocation_map {
 				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
 			}
 		}
 		if len(track.bad_free_array) > 0 {
-			fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+			fmt.eprintf(
+				"=== %v incorrect frees: ===\n",
+				len(track.bad_free_array),
+			)
 			for entry in track.bad_free_array {
 				fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
 			}
@@ -48,12 +55,18 @@ main :: proc() {
 	}
 
 
-	migration_dir, err := filepath.join({#directory, "migrations"}, context.allocator)
+	migration_dir, err := filepath.join(
+		{#directory, "migrations"},
+		context.allocator,
+	)
 	defer delete(migration_dir)
 
 	assert(err == nil, "Unable to resolve migrations folder path")
 
-	dir_entries, err2 := os.read_all_directory_by_path(migration_dir, context.allocator)
+	dir_entries, err2 := os.read_all_directory_by_path(
+		migration_dir,
+		context.allocator,
+	)
 	defer os.file_info_slice_delete(dir_entries, context.allocator)
 
 	assert(err2 == nil, "Unable to find migration list from folder")
@@ -89,7 +102,11 @@ main :: proc() {
 	}
 }
 
-apply :: proc(db: ^sqlite.Connection, path: string, allocator := context.allocator) {
+apply :: proc(
+	db: ^sqlite.Connection,
+	path: string,
+	allocator := context.allocator,
+) {
 
 	data, err := os.read_entire_file_from_path(path, allocator)
 	assert(err == nil, "Unable to apply migration")
@@ -103,7 +120,7 @@ apply :: proc(db: ^sqlite.Connection, path: string, allocator := context.allocat
 	trimmed: string
 	for exp in expressions {
 		trimmed = strings.trim_space(exp)
-		if (len(trimmed) == 0) {continue}
+		if (len(trimmed) == 0) { continue }
 
 		fmt.printfln("Expressions: |%#v| \nApplying", trimmed)
 

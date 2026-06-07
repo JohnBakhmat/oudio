@@ -7,7 +7,10 @@ import "core:strings"
 
 db_url: cstring = "oudio.db"
 
-gen_id :: proc(prefix: Maybe(string), allocator := context.allocator) -> string {
+gen_id :: proc(
+	prefix: Maybe(string),
+	allocator := context.allocator,
+) -> string {
 	id: string
 
 	context.random_generator = crypto.random_generator()

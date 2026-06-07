@@ -1,5 +1,6 @@
 package formats
 
+import app_core "../core"
 import "core:bufio"
 import "core:encoding/endian"
 import "core:fmt"
@@ -10,7 +11,6 @@ import "core:path/filepath"
 import "core:strconv"
 import "core:strings"
 import "core:testing"
-import app_core "../core"
 
 ReadError :: enum {
 	UnknownError,
@@ -34,7 +34,10 @@ VorbisComment :: struct {
 	mb_artist_id: Maybe(string),
 }
 
-destroy_vorbis_comment :: proc(c: VorbisComment, allocator: mem.Allocator = context.allocator) {
+destroy_vorbis_comment :: proc(
+	c: VorbisComment,
+	allocator: mem.Allocator = context.allocator,
+) {
 	delete(c.title, allocator)
 	delete(c.album, allocator)
 	delete(c.album_artist, allocator)
@@ -62,7 +65,11 @@ check_is_flac :: proc(r: ^bufio.Reader) -> bool {
 		return false
 	}
 
-	app_core.log_debugf("%s %s", app_core.colorize("marker", app_core.ANSI_CYAN), app_core.colorize(string(marker), app_core.ANSI_GREEN))
+	app_core.log_debugf(
+		"%s %s",
+		app_core.colorize("marker", app_core.ANSI_CYAN),
+		app_core.colorize(string(marker), app_core.ANSI_GREEN),
+	)
 
 	if string(marker) != "fLaC" {
 		return false
@@ -84,11 +91,23 @@ Header :: struct {
 }
 
 parse_header :: proc(arr: []byte) -> Header {
-	app_core.log_debugf("%s len=%d data=%v", app_core.colorize("parse_header", app_core.ANSI_CYAN), len(arr), arr)
+	app_core.log_debugf(
+		"%s len=%d data=%v",
+		app_core.colorize("parse_header", app_core.ANSI_CYAN),
+		len(arr),
+		arr,
+	)
 
 	assert(len(arr) >= 4)
 
-	app_core.log_debugf("%s b0=%d b1=%d b2=%d b3=%d", app_core.colorize("header-bytes", app_core.ANSI_DIM), arr[0], arr[1], arr[2], arr[3])
+	app_core.log_debugf(
+		"%s b0=%d b1=%d b2=%d b3=%d",
+		app_core.colorize("header-bytes", app_core.ANSI_DIM),
+		arr[0],
+		arr[1],
+		arr[2],
+		arr[3],
+	)
 
 	return Header {
 		is_last = arr[0] & 0x80 != 0,
@@ -97,8 +116,17 @@ parse_header :: proc(arr: []byte) -> Header {
 	}
 }
 
-parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError) {
-	app_core.log_debugf("%s %s", app_core.colorize("vorbis-bytes", app_core.ANSI_CYAN), app_core.colorize(fmt.tprintf("%d", len(arr)), app_core.ANSI_GREEN))
+parse_vorbis_comment :: proc(
+	arr: ^[]byte,
+) -> (
+	c: VorbisComment,
+	err: ReadError,
+) {
+	app_core.log_debugf(
+		"%s %s",
+		app_core.colorize("vorbis-bytes", app_core.ANSI_CYAN),
+		app_core.colorize(fmt.tprintf("%d", len(arr)), app_core.ANSI_GREEN),
+	)
 
 	length := u32(len(arr))
 	cursor: u32 = 0
@@ -115,16 +143,28 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 	if (!ok) {
 		return VorbisComment{}, .UnableToReadVendorString
 	}
-	app_core.log_debugf("%s %s", app_core.colorize("vendor-length", app_core.ANSI_CYAN), app_core.colorize(fmt.tprintf("%d", vendor_str_len), app_core.ANSI_GREEN))
+	app_core.log_debugf(
+		"%s %s",
+		app_core.colorize("vendor-length", app_core.ANSI_CYAN),
+		app_core.colorize(
+			fmt.tprintf("%d", vendor_str_len),
+			app_core.ANSI_GREEN,
+		),
+	)
 	cursor += 4
 
-	if (vendor_str_len > MAX_FIELD_LENGTH || cursor + vendor_str_len > length) {
+	if (vendor_str_len > MAX_FIELD_LENGTH ||
+		   cursor + vendor_str_len > length) {
 		return VorbisComment{}, .UnableToReadVendorString
 	}
 
 	// Read vendor string
 	vendor_str := string(arr[cursor:cursor + vendor_str_len])
-	app_core.log_debugf("%s %s", app_core.colorize("vendor", app_core.ANSI_CYAN), app_core.colorize(vendor_str, app_core.ANSI_GREEN))
+	app_core.log_debugf(
+		"%s %s",
+		app_core.colorize("vendor", app_core.ANSI_CYAN),
+		app_core.colorize(vendor_str, app_core.ANSI_GREEN),
+	)
 	cursor += vendor_str_len
 
 	//Read number of fields
@@ -135,7 +175,11 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 	if (!ok) {
 		return VorbisComment{}, .UnknownError
 	}
-	app_core.log_debugf("%s %s", app_core.colorize("fields", app_core.ANSI_CYAN), app_core.colorize(fmt.tprintf("%d", num_fields), app_core.ANSI_GREEN))
+	app_core.log_debugf(
+		"%s %s",
+		app_core.colorize("fields", app_core.ANSI_CYAN),
+		app_core.colorize(fmt.tprintf("%d", num_fields), app_core.ANSI_GREEN),
+	)
 	if (num_fields > MAX_VORBIS_FIELDS) {
 		return VorbisComment{}, .UnknownError
 	}
@@ -158,15 +202,27 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 			return VorbisComment{}, .Unable_To_Read_Field_Length
 		}
 
-		if (field_length > MAX_FIELD_LENGTH || cursor + field_length > length) {
+		if (field_length > MAX_FIELD_LENGTH ||
+			   cursor + field_length > length) {
 			return VorbisComment{}, .UnknownError
 		}
-		app_core.log_debugf("%s %s", app_core.colorize("field-length", app_core.ANSI_DIM), app_core.colorize(fmt.tprintf("%d", field_length), app_core.ANSI_GREEN))
+		app_core.log_debugf(
+			"%s %s",
+			app_core.colorize("field-length", app_core.ANSI_DIM),
+			app_core.colorize(
+				fmt.tprintf("%d", field_length),
+				app_core.ANSI_GREEN,
+			),
+		)
 
 		cursor += 4
 
 		field := string(arr[cursor:cursor + field_length])
-		app_core.log_debugf("%s %s", app_core.colorize("field", app_core.ANSI_YELLOW), app_core.colorize(field, app_core.ANSI_MAGENTA))
+		app_core.log_debugf(
+			"%s %s",
+			app_core.colorize("field", app_core.ANSI_YELLOW),
+			app_core.colorize(field, app_core.ANSI_MAGENTA),
+		)
 
 		pair := strings.split(field, "=")
 		defer delete(pair)
@@ -176,7 +232,13 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 		key := pair[0]
 		value := pair[1]
 
-		app_core.log_debugf("%s %s   %s %s", app_core.colorize("key", app_core.ANSI_CYAN), app_core.colorize(key, app_core.ANSI_YELLOW), app_core.colorize("value", app_core.ANSI_CYAN), app_core.colorize(value, app_core.ANSI_GREEN))
+		app_core.log_debugf(
+			"%s %s   %s %s",
+			app_core.colorize("key", app_core.ANSI_CYAN),
+			app_core.colorize(key, app_core.ANSI_YELLOW),
+			app_core.colorize("value", app_core.ANSI_CYAN),
+			app_core.colorize(value, app_core.ANSI_GREEN),
+		)
 
 
 		switch key {
@@ -210,7 +272,11 @@ parse_vorbis_comment :: proc(arr: ^[]byte) -> (c: VorbisComment, err: ReadError)
 		comment.album_artist = comment.artists[0]
 	}
 
-	app_core.log_infof("%s %#v", app_core.colorize("parsed-comment", app_core.ANSI_CYAN), comment)
+	app_core.log_infof(
+		"%s %#v",
+		app_core.colorize("parsed-comment", app_core.ANSI_CYAN),
+		comment,
+	)
 
 	return comment, nil
 }
@@ -238,21 +304,37 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 			return VorbisComment{}, .UnknownError
 		}
 
-		app_core.log_debugf("%s %v", app_core.colorize("header-bytes", app_core.ANSI_DIM), headerBytes)
+		app_core.log_debugf(
+			"%s %v",
+			app_core.colorize("header-bytes", app_core.ANSI_DIM),
+			headerBytes,
+		)
 
 		header := parse_header(headerBytes)
 
 		app_core.log_debugf(
 			"%s type=%s length=%s is_last=%v",
 			app_core.colorize("header", app_core.ANSI_CYAN),
-			app_core.colorize(fmt.tprintf("%d", header.stream_info), app_core.ANSI_YELLOW),
-			app_core.colorize(fmt.tprintf("%d", header.length), app_core.ANSI_GREEN),
+			app_core.colorize(
+				fmt.tprintf("%d", header.stream_info),
+				app_core.ANSI_YELLOW,
+			),
+			app_core.colorize(
+				fmt.tprintf("%d", header.length),
+				app_core.ANSI_GREEN,
+			),
 			header.is_last,
 		)
 
 
 		if (header.stream_info == VORBIS_COMMENT) {
-			app_core.log_infof("%s", app_core.colorize("found vorbis comment block", app_core.ANSI_CYAN))
+			app_core.log_infof(
+				"%s",
+				app_core.colorize(
+					"found vorbis comment block",
+					app_core.ANSI_CYAN,
+				),
+			)
 
 			vorbisCommentBytes := make([]byte, header.length)
 			defer delete(vorbisCommentBytes)
@@ -261,7 +343,12 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 
 			vn, verr := io.read_full(s, vorbisCommentBytes)
 			if verr != nil || cast(u32)vn != header.length {
-				app_core.log_errorf("failed reading vorbis comment bytes err=%v read=%d expected=%d", verr, vn, header.length)
+				app_core.log_errorf(
+					"failed reading vorbis comment bytes err=%v read=%d expected=%d",
+					verr,
+					vn,
+					header.length,
+				)
 				return VorbisComment{}, .UnknownError
 			}
 
@@ -273,18 +360,30 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 		}
 
 		skip := header.length
-		app_core.log_debugf("%s %s", app_core.colorize("skip", app_core.ANSI_DIM), app_core.colorize(fmt.tprintf("%d", skip), app_core.ANSI_GREEN))
+		app_core.log_debugf(
+			"%s %s",
+			app_core.colorize("skip", app_core.ANSI_DIM),
+			app_core.colorize(fmt.tprintf("%d", skip), app_core.ANSI_GREEN),
+		)
 		x, xerr := bufio.reader_discard(&r, int(skip))
 		if xerr != nil {
 			app_core.log_errorf("discard error: %v", xerr)
 			return VorbisComment{}, .UnknownError
 		}
 		if x != int(skip) {
-			app_core.log_errorf("discard incomplete: wanted %d, got %d", skip, x)
+			app_core.log_errorf(
+				"discard incomplete: wanted %d, got %d",
+				skip,
+				x,
+			)
 			// Need to handle partial discard
 		}
 
-		app_core.log_debugf("%s %d", app_core.colorize("discarded", app_core.ANSI_DIM), x)
+		app_core.log_debugf(
+			"%s %d",
+			app_core.colorize("discarded", app_core.ANSI_DIM),
+			x,
+		)
 
 	}
 
@@ -296,7 +395,10 @@ flac_read :: proc(file: ^os.File) -> (c: VorbisComment, err: ReadError) {
 should_read_flac_file :: proc(t: ^testing.T) {
 	file_path := "../../test-data/07. Vampire in the Corner.flac"
 
-	input_path, test_err := filepath.join({#directory, file_path}, context.temp_allocator)
+	input_path, test_err := filepath.join(
+		{#directory, file_path},
+		context.temp_allocator,
+	)
 	testing.expect(t, test_err == nil)
 
 	f, ferr := os.open(input_path, {.Read})
@@ -329,7 +431,10 @@ should_check_flac_file :: proc(t: ^testing.T) {
 
 	file_path := "../../test-data/07. Vampire in the Corner.flac"
 
-	input_path, test_err := filepath.join({#directory, file_path}, context.temp_allocator)
+	input_path, test_err := filepath.join(
+		{#directory, file_path},
+		context.temp_allocator,
+	)
 	testing.expect(t, test_err == nil)
 
 	f, ferr := os.open(input_path, {.Read})
@@ -356,7 +461,10 @@ should_return_error_on_non_flac_file :: proc(t: ^testing.T) {
 
 	file_path := "../../test-data/08. Last Dinosaurs - Purxst.wav"
 
-	input_path, test_err := filepath.join({#directory, file_path}, context.temp_allocator)
+	input_path, test_err := filepath.join(
+		{#directory, file_path},
+		context.temp_allocator,
+	)
 	testing.expect(t, test_err == nil)
 
 	f, ferr := os.open(input_path, {.Read})

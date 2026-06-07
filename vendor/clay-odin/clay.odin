@@ -171,7 +171,8 @@ TransitionProperty :: enum c.int {
 TransitionPropertyFlags :: bit_set[TransitionProperty;c.int]
 TransitionPropertyPosition :: TransitionPropertyFlags{.X, .Y}
 TransitionPropertyDimensions :: TransitionPropertyFlags{.Width, .Height}
-TransitionPropertyBoundingBox :: TransitionPropertyPosition + TransitionPropertyDimensions
+TransitionPropertyBoundingBox ::
+	TransitionPropertyPosition + TransitionPropertyDimensions
 TransitionPropertyBorder :: TransitionPropertyFlags{.BorderColor, .BorderWidth}
 
 TransitionCallbackArguments :: struct {
@@ -211,11 +212,17 @@ TransitionElementConfig :: struct {
 	properties:          TransitionPropertyFlags,
 	interactionHandling: TransitionInteractionHandlingType,
 	enter:               struct {
-		setInitialState: proc "c" (initialState: TransitionData, properties: TransitionPropertyFlags) -> TransitionData,
+		setInitialState: proc "c" (
+			initialState: TransitionData,
+			properties: TransitionPropertyFlags,
+		) -> TransitionData,
 		trigger:         TransitionEnterTriggerType,
 	},
 	exit:                struct {
-		setFinalState:   proc "c" (finalState: TransitionData, properties: TransitionPropertyFlags) -> TransitionData,
+		setFinalState:   proc "c" (
+			finalState: TransitionData,
+			properties: TransitionPropertyFlags,
+		) -> TransitionData,
 		trigger:         TransitionExitTriggerType,
 		siblingOrdering: ExitTransitionSiblingOrdering,
 	},
@@ -557,7 +564,12 @@ TextDynamic :: proc(text: string, config: TextElementConfig) {
 }
 
 PaddingAll :: proc(allPadding: u16) -> Padding {
-	return {left = allPadding, right = allPadding, top = allPadding, bottom = allPadding}
+	return {
+		left = allPadding,
+		right = allPadding,
+		top = allPadding,
+		bottom = allPadding,
+	}
 }
 
 BorderOutside :: proc(width: u16) -> BorderWidth {
@@ -573,19 +585,31 @@ CornerRadiusAll :: proc(radius: f32) -> CornerRadius {
 }
 
 SizingFit :: proc(sizeMinMax: SizingConstraintsMinMax = {}) -> SizingAxis {
-	return SizingAxis{type = SizingType.Fit, constraints = {sizeMinMax = sizeMinMax}}
+	return SizingAxis {
+		type = SizingType.Fit,
+		constraints = {sizeMinMax = sizeMinMax},
+	}
 }
 
 SizingGrow :: proc(sizeMinMax: SizingConstraintsMinMax = {}) -> SizingAxis {
-	return SizingAxis{type = SizingType.Grow, constraints = {sizeMinMax = sizeMinMax}}
+	return SizingAxis {
+		type = SizingType.Grow,
+		constraints = {sizeMinMax = sizeMinMax},
+	}
 }
 
 SizingFixed :: proc(size: c.float) -> SizingAxis {
-	return SizingAxis{type = SizingType.Fixed, constraints = {sizeMinMax = {size, size}}}
+	return SizingAxis {
+		type = SizingType.Fixed,
+		constraints = {sizeMinMax = {size, size}},
+	}
 }
 
 SizingPercent :: proc(sizePercent: c.float) -> SizingAxis {
-	return SizingAxis{type = SizingType.Percent, constraints = {sizePercent = sizePercent}}
+	return SizingAxis {
+		type = SizingType.Percent,
+		constraints = {sizePercent = sizePercent},
+	}
 }
 
 MakeString :: proc(label: string) -> String {

@@ -29,7 +29,8 @@ new_artist_album1 :: proc(
 
 	stmt: ^sqlite.Statement
 
-	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil); rc != .Ok {
+	if rc := sqlite.prepare_v2(db, query, c.int(len(query)), &stmt, nil);
+	   rc != .Ok {
 		return .UnknownError
 	}
 	defer sqlite.finalize(stmt)
@@ -88,7 +89,10 @@ new_artist_album :: proc(
 	rc := sa.execute(
 		db,
 		query,
-		{{index = 1, value = string(a.artist_id)}, {index = 2, value = string(a.album_id)}},
+		{
+			{index = 1, value = string(a.artist_id)},
+			{index = 2, value = string(a.album_id)},
+		},
 	)
 
 

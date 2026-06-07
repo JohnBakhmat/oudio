@@ -3,6 +3,7 @@ package components
 import clay "../../../vendor/clay-odin"
 import c "../config"
 
+
 library_aside :: proc() {
 
 	if clay.UI(clay.ID("library-aside"))(
@@ -12,6 +13,7 @@ library_aside :: proc() {
 				height = clay.SizingGrow(),
 				width = clay.SizingFixed(256.0),
 			},
+			layoutDirection = .TopToBottom,
 		},
 		backgroundColor = c.COLOR_BACKGROUND,
 	},
@@ -38,11 +40,7 @@ library_aside :: proc() {
 				},
 			)
 
-			if clay.UI()(
-			clay.ElementDeclaration {
-				layout = {sizing = {width = clay.SizingGrow()}},
-			},
-			) {  }
+			grow_horizontal()
 
 
 			clay.Text(
@@ -54,8 +52,8 @@ library_aside :: proc() {
 				},
 			)
 
-
 		}
 
+		library_body()
 	}
 }

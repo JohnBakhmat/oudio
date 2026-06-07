@@ -13,7 +13,9 @@ should_create_new_album :: proc(t: ^testing.T) {
 	title := db_pkg.gen_id("album_title")
 	defer delete(title)
 
-	album := types.Album{title = title}
+	album := types.Album {
+		title = title,
+	}
 	new_id, err := new_album(db, album)
 	defer delete(string(new_id))
 
@@ -29,7 +31,9 @@ should_get_album_by_id :: proc(t: ^testing.T) {
 	title := db_pkg.gen_id("album_by_id")
 	defer delete(title)
 
-	album := types.Album{title = title}
+	album := types.Album {
+		title = title,
+	}
 	new_id, err := new_album(db, album)
 	testing.expect(t, err == .None)
 
@@ -50,7 +54,9 @@ should_get_album_by_title :: proc(t: ^testing.T) {
 	title := db_pkg.gen_id("album_lookup")
 	defer delete(title)
 
-	album := types.Album{title = title}
+	album := types.Album {
+		title = title,
+	}
 	new_id, err := new_album(db, album)
 	testing.expect(t, err == .None)
 	defer delete(string(new_id))
@@ -70,7 +76,9 @@ should_get_or_create_album :: proc(t: ^testing.T) {
 	title := db_pkg.gen_id("album_upsert")
 	defer delete(title)
 
-	album := types.Album{title = title}
+	album := types.Album {
+		title = title,
+	}
 
 	first_id, first_ok := get_or_create_album(db, album)
 	testing.expect(t, first_ok)

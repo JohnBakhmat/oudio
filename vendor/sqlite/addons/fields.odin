@@ -16,8 +16,13 @@ Field_Type :: struct {
 }
 
 @(private)
-write_struct_field :: proc(obj: ^$T, field: Field_Type, value: $E) -> Field_Error {
-	if !(size_of(field.type.id) == size_of(E) || field.type.id == typeid_of(E)) {
+write_struct_field :: proc(
+	obj: ^$T,
+	field: Field_Type,
+	value: $E,
+) -> Field_Error {
+	if !(size_of(field.type.id) == size_of(E) ||
+		   field.type.id == typeid_of(E)) {
 		return fmt.tprintf(
 			"given field {}.{} ({}) is not the same size as given value {}. {} != {}",
 			typeid_of(T),
@@ -104,7 +109,10 @@ get_type_fields :: proc($T: typeid) -> ([]Field_Type, Field_Error) {
 	struct_info := type_info_of(T)
 	for i in 0 ..< reflect.struct_field_count(T) {
 		field := reflect.struct_field_at(T, i)
-		capture, err := match_and_return_capture(`sqlite:"(.*?)"`, cast(string)field.tag)
+		capture, err := match_and_return_capture(
+			`sqlite:"(.*?)"`,
+			cast(string)field.tag,
+		)
 		if err != nil {
 			defer delete_field_types(out[:])
 

@@ -19,7 +19,10 @@ open_test_db :: proc(t: ^testing.T) -> ^sqlite.Connection {
 apply_test_migrations :: proc(t: ^testing.T, db: ^sqlite.Connection) {
 	migration_dir := "src/db/migrations"
 
-	dir_entries, err := os.read_all_directory_by_path(migration_dir, context.allocator)
+	dir_entries, err := os.read_all_directory_by_path(
+		migration_dir,
+		context.allocator,
+	)
 	testing.expect(t, err == nil)
 	defer os.file_info_slice_delete(dir_entries, context.allocator)
 

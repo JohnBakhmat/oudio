@@ -19,7 +19,10 @@ import "core:testing"
 main :: proc() {
 
 	dir_path := "../../test-data/"
-	input_path, test_err := filepath.join({#directory, dir_path}, context.temp_allocator)
+	input_path, test_err := filepath.join(
+		{#directory, dir_path},
+		context.temp_allocator,
+	)
 	assert(test_err == nil)
 
 	arena: vmem.Arena
@@ -41,13 +44,19 @@ main :: proc() {
 	context.allocator = mem.tracking_allocator(&track)
 	defer {
 		if len(track.allocation_map) > 0 {
-			fmt.eprintf("=== %v allocations not freed: ===\n", len(track.allocation_map))
+			fmt.eprintf(
+				"=== %v allocations not freed: ===\n",
+				len(track.allocation_map),
+			)
 			for _, entry in track.allocation_map {
 				fmt.eprintf("- %v bytes @ %v\n", entry.size, entry.location)
 			}
 		}
 		if len(track.bad_free_array) > 0 {
-			fmt.eprintf("=== %v incorrect frees: ===\n", len(track.bad_free_array))
+			fmt.eprintf(
+				"=== %v incorrect frees: ===\n",
+				len(track.bad_free_array),
+			)
 			for entry in track.bad_free_array {
 				fmt.eprintf("- %p @ %v\n", entry.memory, entry.location)
 			}
@@ -97,7 +106,12 @@ main :: proc() {
 		}
 
 
-		fmt.printfln("Flac Comment %#v, artist %#v album %#v", flac, artist, album)
+		fmt.printfln(
+			"Flac Comment %#v, artist %#v album %#v",
+			flac,
+			artist,
+			album,
+		)
 
 		new_album_id, new_album_ok := db.get_or_create_album(db_conn, album)
 		defer delete(string(new_album_id))
@@ -105,7 +119,10 @@ main :: proc() {
 
 		fmt.printfln("New album |%v| with id |%v|", album.title, new_album_id)
 
-		new_artist_id, new_artist_ok := db.get_or_create_artist(db_conn, artist)
+		new_artist_id, new_artist_ok := db.get_or_create_artist(
+			db_conn,
+			artist,
+		)
 		defer delete(string(new_artist_id))
 		assert(new_artist_ok)
 
@@ -117,7 +134,10 @@ main :: proc() {
 			}
 
 			artist_album_err := db.new_artist_album(db_conn, artist_album)
-			assert(artist_album_err == .None || artist_album_err == .UniqueConstraint)
+			assert(
+				artist_album_err == .None ||
+				artist_album_err == .UniqueConstraint,
+			)
 		}
 
 

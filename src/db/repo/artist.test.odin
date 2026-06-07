@@ -10,7 +10,7 @@ should_create_new_artist :: proc(t: ^testing.T) {
 	db := open_test_db(t)
 	defer sqlite.close(db)
 
-	artist := types.Artist{
+	artist := types.Artist {
 		name = db_pkg.gen_id("artist_name"),
 	}
 
@@ -27,7 +27,7 @@ should_create_new_artist_batch :: proc(t: ^testing.T) {
 	db := open_test_db(t)
 	defer sqlite.close(db)
 
-	artists := []types.Artist{
+	artists := []types.Artist {
 		{name = "artist_batch_1"},
 		{name = "artist_batch_2"},
 		{name = "artist_batch_3"},
@@ -45,7 +45,9 @@ should_get_artist_by_name :: proc(t: ^testing.T) {
 	name := db_pkg.gen_id("artist_lookup")
 	defer delete(name)
 
-	artist := types.Artist{name = name}
+	artist := types.Artist {
+		name = name,
+	}
 	new_id, err := new_artist(db, artist)
 	defer delete(string(new_id))
 	testing.expect(t, err == .None)
@@ -66,7 +68,9 @@ should_get_or_create_artist :: proc(t: ^testing.T) {
 	name := db_pkg.gen_id("artist_upsert")
 	defer delete(name)
 
-	artist := types.Artist{name = name}
+	artist := types.Artist {
+		name = name,
+	}
 
 	first_id, first_ok := get_or_create_artist(db, artist)
 	testing.expect(t, first_ok)

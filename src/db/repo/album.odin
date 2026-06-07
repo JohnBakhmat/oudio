@@ -183,7 +183,8 @@ get_or_create_album :: proc(
 ) {
 	new_album_id, new_album_err := new_album(db, album)
 
-	if (new_album_err == .None || new_album_err == .UniqueConstraint) == false {
+	if (new_album_err == .None || new_album_err == .UniqueConstraint) ==
+	   false {
 		return "", false
 	}
 
@@ -191,7 +192,10 @@ get_or_create_album :: proc(
 
 	if (new_album_err == .UniqueConstraint) {
 		fmt.printfln("Sync, album unique constraint")
-		existing_album, existing_album_ok := get_album_by_title(db, album.title)
+		existing_album, existing_album_ok := get_album_by_title(
+			db,
+			album.title,
+		)
 
 		assert(existing_album_ok)
 

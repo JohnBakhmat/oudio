@@ -5,11 +5,16 @@ import sqlite "../../../vendor/sqlite"
 import types "../../core"
 import "core:testing"
 
-create_album_for_track_test :: proc(t: ^testing.T, db: ^sqlite.Connection) -> types.Album_Id {
+create_album_for_track_test :: proc(
+	t: ^testing.T,
+	db: ^sqlite.Connection,
+) -> types.Album_Id {
 	title := db_pkg.gen_id("track_album")
 	defer delete(title)
 
-	album := types.Album{title = title}
+	album := types.Album {
+		title = title,
+	}
 	album_id, err := new_album(db, album)
 	testing.expect(t, err == .None)
 
@@ -27,7 +32,7 @@ should_create_new_track :: proc(t: ^testing.T) {
 	track_title := db_pkg.gen_id("track_title")
 	defer delete(track_title)
 
-	track := types.Track{
+	track := types.Track {
 		title        = track_title,
 		track_number = 1,
 		album_id     = album_id,
@@ -51,7 +56,7 @@ should_get_track_by_title :: proc(t: ^testing.T) {
 	track_title := db_pkg.gen_id("track_lookup")
 	defer delete(track_title)
 
-	track := types.Track{
+	track := types.Track {
 		title        = track_title,
 		track_number = 2,
 		album_id     = album_id,
@@ -80,7 +85,7 @@ should_get_or_create_track :: proc(t: ^testing.T) {
 	track_title := db_pkg.gen_id("track_upsert")
 	defer delete(track_title)
 
-	track := types.Track{
+	track := types.Track {
 		title        = track_title,
 		track_number = 3,
 		album_id     = album_id,

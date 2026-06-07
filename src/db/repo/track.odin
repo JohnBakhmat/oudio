@@ -86,10 +86,7 @@ get_track_by_title :: proc(
 			db,
 			&rows,
 			"SELECT id, title, track_number, COALESCE(mb_id, '') AS mb_id, album_id FROM track WHERE title = ? AND album_id = ? LIMIT 1",
-			{
-				{index = 1, value = title},
-				{index = 2, value = string(v)},
-			},
+			{{index = 1, value = title}, {index = 2, value = string(v)}},
 		)
 	} else {
 		rc = sa.query(
@@ -133,14 +130,19 @@ get_or_create_track :: proc(
 
 	fmt.printfln("track Err %v", new_track_err)
 
-	if (new_track_err == .None || new_track_err == .UniqueConstraint) == false {
+	if (new_track_err == .None || new_track_err == .UniqueConstraint) ==
+	   false {
 		return "", false
 	}
 
 
 	if (new_track_err == .UniqueConstraint) {
 		fmt.printfln("Sync, track unique constraint")
-		existing_track, existing_track_ok := get_track_by_title(db, track.title, track.album_id)
+		existing_track, existing_track_ok := get_track_by_title(
+			db,
+			track.title,
+			track.album_id,
+		)
 
 		assert(existing_track_ok)
 

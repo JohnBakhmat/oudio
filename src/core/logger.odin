@@ -16,16 +16,24 @@ Logger :: struct {
 
 logger := Logger{}
 
-ANSI_RESET   :: "\x1b[0m"
-ANSI_RED     :: "\x1b[31m"
-ANSI_DIM     :: "\x1b[2m"
-ANSI_CYAN    :: "\x1b[36m"
-ANSI_GREEN   :: "\x1b[32m"
-ANSI_YELLOW  :: "\x1b[33m"
+ANSI_RESET :: "\x1b[0m"
+ANSI_RED :: "\x1b[31m"
+ANSI_DIM :: "\x1b[2m"
+ANSI_CYAN :: "\x1b[36m"
+ANSI_GREEN :: "\x1b[32m"
+ANSI_YELLOW :: "\x1b[33m"
 ANSI_MAGENTA :: "\x1b[35m"
 
 is_truthy :: proc(value: string) -> bool {
-	return value == "1" || value == "true" || value == "TRUE" || value == "yes" || value == "YES" || value == "on" || value == "ON"
+	return(
+		value == "1" ||
+		value == "true" ||
+		value == "TRUE" ||
+		value == "yes" ||
+		value == "YES" ||
+		value == "on" ||
+		value == "ON" \
+	)
 }
 
 is_debug_env :: proc() -> bool {

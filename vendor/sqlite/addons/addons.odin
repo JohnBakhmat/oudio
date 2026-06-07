@@ -50,7 +50,10 @@ query :: proc(
 
 // Allocates. Make sure to free results even when the return value is not .Ok
 @(require_results)
-read_all_rows :: proc(stmt: ^sqlite3.Statement, out: ^[dynamic]$T) -> sqlite3.Result_Code {
+read_all_rows :: proc(
+	stmt: ^sqlite3.Statement,
+	out: ^[dynamic]$T,
+) -> sqlite3.Result_Code {
 	fields, err := get_type_fields(T)
 	if err != nil {
 		log.error(err)
@@ -79,8 +82,12 @@ read_all_rows :: proc(stmt: ^sqlite3.Statement, out: ^[dynamic]$T) -> sqlite3.Re
 				return .Internal
 			}
 
-			if err := write_struct_field_from_statement(&item, field_type, stmt, c.int(i));
-			   err != nil {
+			if err := write_struct_field_from_statement(
+				&item,
+				field_type,
+				stmt,
+				c.int(i),
+			); err != nil {
 				log.error(err)
 				free_query_error(err)
 				return .Internal
@@ -150,7 +157,13 @@ prepare :: proc(
 			// Explicitly it's just a slice.
 			// https://sqlite.org/c3ref/bind_blob.html.
 			cstr := strings.unsafe_string_to_cstring(v)
-			sqlite3.bind_text(stmt^, idx, cstr, c.int(len(v)), {behaviour = .Static}) or_return
+			sqlite3.bind_text(
+				stmt^,
+				idx,
+				cstr,
+				c.int(len(v)),
+				{behaviour = .Static},
+			) or_return
 		} else {
 			log.errorf("unhandled parameter type {}", param.value)
 			return .Internal
@@ -166,13 +179,19 @@ prepare :: proc(
 	} else {
 		// Not going to return an error here because everything else worked fine,
 		// but it should be logged regardless.
-		log.errorf("Unable to allocate memory while expanding the sql statement")
+		log.errorf(
+			"Unable to allocate memory while expanding the sql statement",
+		)
 	}
 	return .Ok
 }
 
 @(private)
-do_log :: #force_inline proc(format_str: string, args: ..any, location := #caller_location) {
+do_log :: #force_inline proc(
+	format_str: string,
+	args: ..any,
+	location := #caller_location,
+) {
 	level, ok := config.log_level.?
 	if !ok do return
 

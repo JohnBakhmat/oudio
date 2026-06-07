@@ -29,7 +29,10 @@ ReadError :: enum {
 	Unable_To_Read_Dir,
 }
 
-walk_dir :: proc(path: string, allocator := context.allocator) -> [dynamic]string {
+walk_dir :: proc(
+	path: string,
+	allocator := context.allocator,
+) -> [dynamic]string {
 
 	w := os.walker_create(path)
 	defer os.walker_destroy(&w)
@@ -71,7 +74,10 @@ walk_dir :: proc(path: string, allocator := context.allocator) -> [dynamic]strin
 should_index_all_file_paths :: proc(t: ^testing.T) {
 	dir_path := "../../test-data/"
 
-	input_path, test_err := filepath.join({#directory, dir_path}, context.temp_allocator)
+	input_path, test_err := filepath.join(
+		{#directory, dir_path},
+		context.temp_allocator,
+	)
 	testing.expect(t, test_err == nil)
 
 	arena: vmem.Arena

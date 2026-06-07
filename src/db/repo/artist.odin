@@ -145,7 +145,8 @@ get_or_create_artist :: proc(
 
 	new_artist_id, new_artist_err := new_artist(db, artist)
 
-	if (new_artist_err == .None || new_artist_err == .UniqueConstraint) == false {
+	if (new_artist_err == .None || new_artist_err == .UniqueConstraint) ==
+	   false {
 		return "", false
 	}
 
@@ -154,7 +155,10 @@ get_or_create_artist :: proc(
 	if (new_artist_err == .UniqueConstraint) {
 
 		fmt.printfln("Sync, artist unique constraint")
-		existing_artist, existing_artist_ok := get_artist_by_name(db, artist.name)
+		existing_artist, existing_artist_ok := get_artist_by_name(
+			db,
+			artist.name,
+		)
 
 		assert(existing_artist_ok)
 
@@ -163,7 +167,9 @@ get_or_create_artist :: proc(
 		fmt.printfln("Existing artist %v", existing_artist)
 
 		delete(string(new_artist_id))
-		new_artist_id = types.Artist_Id(strings.clone(string(existing_artist.id)))
+		new_artist_id = types.Artist_Id(
+			strings.clone(string(existing_artist.id)),
+		)
 	}
 
 	return new_artist_id, true

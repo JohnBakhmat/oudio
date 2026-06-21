@@ -18,7 +18,8 @@ import "core:testing"
 
 main :: proc() {
 
-	dir_path := "../../test-data/"
+	// dir_path := "../../test-data/"
+	dir_path := "../../../../../../../mnt/secondary/music"
 	input_path, test_err := filepath.join(
 		{#directory, dir_path},
 		context.temp_allocator,
@@ -81,77 +82,102 @@ main :: proc() {
 
 
 	for path in paths {
-		fmt.printfln("Path: %s", path)
-
-		file, ferr := os.open(path, {.Read})
-		assert(ferr == nil)
-
-		flac, flac_err := formats.flac_read(file)
-		defer formats.destroy_vorbis_comment(flac)
-
-		os.close(file)
-		assert(flac_err == nil)
-
-		album := types.Album {
-			id       = "",
-			title    = flac.album,
-			mb_id    = flac.mb_id,
-			mb_rg_id = flac.mb_rg_id,
-		}
-
-		artist := types.Artist {
-			id    = "",
-			name  = flac.album_artist,
-			mb_id = flac.mb_artist_id,
-		}
-
-
-		fmt.printfln(
-			"Flac Comment %#v, artist %#v album %#v",
-			flac,
-			artist,
-			album,
-		)
-
-		new_album_id, new_album_ok := db.get_or_create_album(db_conn, album)
-		defer delete(string(new_album_id))
-		assert(new_album_ok)
-
-		fmt.printfln("New album |%v| with id |%v|", album.title, new_album_id)
-
-		new_artist_id, new_artist_ok := db.get_or_create_artist(
-			db_conn,
-			artist,
-		)
-		defer delete(string(new_artist_id))
-		assert(new_artist_ok)
-
-
-		if (flac.album_artist == artist.name) {
-			artist_album := types.ArtistAlbum {
-				album_id  = new_album_id,
-				artist_id = new_artist_id,
-			}
-
-			artist_album_err := db.new_artist_album(db_conn, artist_album)
-			assert(
-				artist_album_err == .None ||
-				artist_album_err == .UniqueConstraint,
-			)
-		}
-
-
-		track := types.Track {
-			id           = "",
-			title        = flac.title,
-			track_number = flac.track_number,
-			album_id     = new_album_id,
-		}
-
-
-		new_track_id, new_track_ok := db.get_or_create_track(db_conn, track)
-		defer delete(string(new_track_id))
-		assert(new_track_ok)
-
+		save_path(path, db_conn)
 	}
+}
+
+is_identifiable :: proc(flac: formats.VorbisComment) -> bool {
+	if len(flac.title) == 0 {
+		return false
+	}
+
+	has_album :=
+		len(flac.album) > 0 ||
+		flac.mb_id != nil ||
+		flac.mb_rg_id != nil
+
+	return has_album
+}
+
+
+save_path :: proc(path: string, db_conn: ^sqlite.Connection) {
+
+	fmt.printfln("Path: %s", path)
+
+	file, ferr := os.open(path, {.Read})
+	assert(ferr == nil)
+
+	flac, flac_err := formats.flac_read(file)
+	defer formats.destroy_vorbis_comment(flac)
+
+	os.close(file)
+	assert(flac_err == nil)
+
+	if !is_identifiable(flac) {
+		fmt.eprintfln("Skipping unidentified file: %s", path)
+		return
+	}
+
+	album := types.Album {
+		id       = "",
+		title    = flac.album,
+		mb_id    = flac.mb_id,
+		mb_rg_id = flac.mb_rg_id,
+	}
+
+	artist := types.Artist {
+		id    = "",
+		name  = flac.album_artist,
+		mb_id = flac.mb_artist_id,
+	}
+
+
+	fmt.printfln("Flac Comment %#v, artist %#v album %#v", flac, artist, album)
+
+	new_album_id, new_album_ok := db.get_or_create_album(db_conn, album)
+	defer delete(string(new_album_id))
+	assert(new_album_ok)
+
+	fmt.printfln("New album |%v| with id |%v|", album.title, new_album_id)
+
+	new_artist_id, new_artist_ok := db.get_or_create_artist(db_conn, artist)
+	defer delete(string(new_artist_id))
+	assert(new_artist_ok)
+
+
+	if (flac.album_artist == artist.name) {
+		artist_album := types.ArtistAlbum {
+			album_id  = new_album_id,
+			artist_id = new_artist_id,
+		}
+
+		artist_album_err := db.new_artist_album(db_conn, artist_album)
+		assert(
+			artist_album_err == .None || artist_album_err == .UniqueConstraint,
+		)
+	}
+
+
+	track := types.Track {
+		id           = "",
+		title        = flac.title,
+		track_number = flac.track_number,
+		album_id     = new_album_id,
+	}
+
+
+	new_track_id, new_track_ok := db.get_or_create_track(db_conn, track)
+	defer delete(string(new_track_id))
+	assert(new_track_ok)
+
+
+	file_record := types.FileRecord {
+		id       = "",
+		path     = path,
+		track_id = new_track_id,
+	}
+
+	new_file_id, new_file_err := db.new_file(db_conn, file_record)
+	defer delete(string(new_file_id))
+
 }

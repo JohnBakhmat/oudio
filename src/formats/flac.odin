@@ -34,14 +34,36 @@ VorbisComment :: struct {
 	mb_artist_id: Maybe(string),
 }
 
+string_same_allocation :: proc(a, b: string) -> bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+	return raw_data(a) == raw_data(b)
+}
+
 destroy_vorbis_comment :: proc(
 	c: VorbisComment,
 	allocator: mem.Allocator = context.allocator,
 ) {
 	delete(c.title, allocator)
 	delete(c.album, allocator)
-	delete(c.album_artist, allocator)
+
+	album_artist_freed := false
+	for artist in c.artists {
+		if string_same_allocation(c.album_artist, artist) {
+			album_artist_freed = true
+		}
+		delete(artist, allocator)
+	}
 	delete(c.artists, allocator)
+
+	if !album_artist_freed {
+		delete(c.album_artist, allocator)
+	}
+
 	if mb_id, ok := c.mb_id.?; ok {
 		delete(mb_id, allocator)
 	}
@@ -119,7 +141,7 @@ parse_header :: proc(arr: []byte) -> Header {
 parse_vorbis_comment :: proc(
 	arr: ^[]byte,
 ) -> (
-	c: VorbisComment,
+	comment: VorbisComment,
 	err: ReadError,
 ) {
 	app_core.log_debugf(
@@ -186,25 +208,33 @@ parse_vorbis_comment :: proc(
 	cursor += 4
 
 	artists: [dynamic]string
+	defer {
+		if err != nil {
+			destroy_vorbis_comment(comment, context.allocator)
+			for artist in artists {
+				delete(artist, context.allocator)
+			}
+			delete(artists)
+		}
+	}
 
 	// Read fields
-	comment: VorbisComment
 	for i in 0 ..< num_fields {
 
 		if cursor + 4 > u32(len(arr)) {
-			return VorbisComment{}, .UnknownError // TODO: descriptive error
+			return comment, .UnknownError // TODO: descriptive error
 		}
 
 		field_length: u32
 
 		field_length, ok = endian.get_u32(arr[cursor:cursor + 4], .Little)
 		if (!ok) {
-			return VorbisComment{}, .Unable_To_Read_Field_Length
+			return comment, .Unable_To_Read_Field_Length
 		}
 
 		if (field_length > MAX_FIELD_LENGTH ||
 			   cursor + field_length > length) {
-			return VorbisComment{}, .UnknownError
+			return comment, .UnknownError
 		}
 		app_core.log_debugf(
 			"%s %s",
@@ -227,7 +257,7 @@ parse_vorbis_comment :: proc(
 		pair := strings.split(field, "=")
 		defer delete(pair)
 		if (len(pair) != 2) {
-			return VorbisComment{}, .UnknownError
+			return comment, .UnknownError
 		}
 		key := pair[0]
 		value := pair[1]

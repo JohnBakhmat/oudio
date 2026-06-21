@@ -96,9 +96,56 @@ get_album_by_title :: proc(
 	res: types.Album,
 	ok: bool,
 ) {
+	return get_album_by_column(db, "title", title, allocator)
+}
+
+get_album_by_mb_id :: proc(
+	db: ^sqlite.Connection,
+	mb_id: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Album,
+	ok: bool,
+) {
+	return get_album_by_column(db, "mb_id", mb_id, allocator)
+}
+
+get_album_by_mb_rg_id :: proc(
+	db: ^sqlite.Connection,
+	mb_rg_id: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Album,
+	ok: bool,
+) {
+	return get_album_by_column(db, "mb_rg_id", mb_rg_id, allocator)
+}
+
+@(private)
+get_album_by_column :: proc(
+	db: ^sqlite.Connection,
+	column: string,
+	value: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Album,
+	ok: bool,
+) {
 	Album_Row :: struct {
 		id:    string `sqlite:"id"`,
 		title: string `sqlite:"title"`,
+	}
+
+	sql: string
+	switch column {
+	case "title":
+		sql = "SELECT id, title FROM album WHERE title = ? LIMIT 1"
+	case "mb_id":
+		sql = "SELECT id, title FROM album WHERE mb_id = ? LIMIT 1"
+	case "mb_rg_id":
+		sql = "SELECT id, title FROM album WHERE mb_rg_id = ? LIMIT 1"
+	case:
+		return res, false
 	}
 
 	rows := make([dynamic]Album_Row, 0, 1, allocator)
@@ -113,8 +160,8 @@ get_album_by_title :: proc(
 	rc := sa.query(
 		db,
 		&rows,
-		"SELECT id, title FROM album WHERE title = ? LIMIT 1",
-		{{index = 1, value = title}},
+		sql,
+		{{index = 1, value = value}},
 	)
 
 	if rc != .Ok || len(rows) == 0 {
@@ -173,6 +220,29 @@ get_album_by_id :: proc(
 }
 
 
+find_existing_album :: proc(
+	db: ^sqlite.Connection,
+	album: types.Album,
+	allocator := context.allocator,
+) -> (
+	res: types.Album,
+	ok: bool,
+) {
+	if mb_id, has_mb_id := album.mb_id.?; has_mb_id {
+		if existing, found := get_album_by_mb_id(db, mb_id, allocator); found {
+			return existing, true
+		}
+	}
+
+	if mb_rg_id, has_mb_rg_id := album.mb_rg_id.?; has_mb_rg_id {
+		if existing, found := get_album_by_mb_rg_id(db, mb_rg_id, allocator); found {
+			return existing, true
+		}
+	}
+
+	return get_album_by_title(db, album.title, allocator)
+}
+
 get_or_create_album :: proc(
 	db: ^sqlite.Connection,
 	album: types.Album,
@@ -181,31 +251,41 @@ get_or_create_album :: proc(
 	res: types.Album_Id,
 	ok: bool,
 ) {
-	new_album_id, new_album_err := new_album(db, album)
+	if existing_album, existing_album_ok := find_existing_album(
+		db,
+		album,
+		allocator,
+	); existing_album_ok {
+		defer types.delete_album(existing_album)
+		return types.Album_Id(strings.clone(string(existing_album.id), allocator)), true
+	}
 
-	if (new_album_err == .None || new_album_err == .UniqueConstraint) ==
-	   false {
+	new_album_id, new_album_err := new_album(db, album, allocator)
+
+	if new_album_err == .None {
+		return new_album_id, true
+	}
+
+	if new_album_err != .UniqueConstraint {
 		return "", false
 	}
 
-	fmt.printfln("Album Err %v", new_album_err)
+	fmt.printfln("Sync, album unique constraint for |%v|", album.title)
 
-	if (new_album_err == .UniqueConstraint) {
-		fmt.printfln("Sync, album unique constraint")
-		existing_album, existing_album_ok := get_album_by_title(
-			db,
+	existing_album, existing_album_ok := find_existing_album(db, album, allocator)
+	if !existing_album_ok {
+		fmt.eprintfln(
+			"album unique constraint but no match by mb_id, mb_rg_id, or title for |%v|",
 			album.title,
 		)
-
-		assert(existing_album_ok)
-
-		defer types.delete_album(existing_album)
-
-		fmt.printfln("Existing Album %v", existing_album)
-
 		delete(string(new_album_id))
-		new_album_id = types.Album_Id(strings.clone(string(existing_album.id)))
+		return "", false
 	}
 
-	return new_album_id, true
+	defer types.delete_album(existing_album)
+
+	fmt.printfln("Existing Album %v", existing_album)
+
+	delete(string(new_album_id))
+	return types.Album_Id(strings.clone(string(existing_album.id), allocator)), true
 }

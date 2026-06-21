@@ -99,9 +99,56 @@ get_artist_by_name :: proc(
 	res: types.Artist,
 	ok: bool,
 ) {
+	return get_artist_by_column(db, "name", name, allocator)
+}
+
+get_artist_by_mb_id :: proc(
+	db: ^sqlite.Connection,
+	mb_id: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Artist,
+	ok: bool,
+) {
+	return get_artist_by_column(db, "mb_id", mb_id, allocator)
+}
+
+get_artist_by_acoust_id :: proc(
+	db: ^sqlite.Connection,
+	acoust_id: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Artist,
+	ok: bool,
+) {
+	return get_artist_by_column(db, "acoust_id", acoust_id, allocator)
+}
+
+@(private)
+get_artist_by_column :: proc(
+	db: ^sqlite.Connection,
+	column: string,
+	value: string,
+	allocator := context.allocator,
+) -> (
+	res: types.Artist,
+	ok: bool,
+) {
 	Artist_Row :: struct {
 		id:   string `sqlite:"id"`,
 		name: string `sqlite:"name"`,
+	}
+
+	sql: string
+	switch column {
+	case "name":
+		sql = "SELECT id, name FROM artist WHERE name = ? LIMIT 1"
+	case "mb_id":
+		sql = "SELECT id, name FROM artist WHERE mb_id = ? LIMIT 1"
+	case "acoust_id":
+		sql = "SELECT id, name FROM artist WHERE acoust_id = ? LIMIT 1"
+	case:
+		return res, false
 	}
 
 	rows := make([dynamic]Artist_Row, 0, 1, allocator)
@@ -116,8 +163,8 @@ get_artist_by_name :: proc(
 	rc := sa.query(
 		db,
 		&rows,
-		"SELECT id, name FROM artist WHERE name = ? LIMIT 1",
-		{{index = 1, value = name}},
+		sql,
+		{{index = 1, value = value}},
 	)
 
 	if rc != .Ok || len(rows) == 0 {
@@ -133,6 +180,28 @@ get_artist_by_name :: proc(
 	return artist, true
 }
 
+find_existing_artist :: proc(
+	db: ^sqlite.Connection,
+	artist: types.Artist,
+	allocator := context.allocator,
+) -> (
+	res: types.Artist,
+	ok: bool,
+) {
+	if mb_id, has_mb_id := artist.mb_id.?; has_mb_id {
+		if existing, found := get_artist_by_mb_id(db, mb_id, allocator); found {
+			return existing, true
+		}
+	}
+
+	if acoust_id, has_acoust_id := artist.acoust_id.?; has_acoust_id {
+		if existing, found := get_artist_by_acoust_id(db, acoust_id, allocator); found {
+			return existing, true
+		}
+	}
+
+	return get_artist_by_name(db, artist.name, allocator)
+}
 
 get_or_create_artist :: proc(
 	db: ^sqlite.Connection,
@@ -142,36 +211,46 @@ get_or_create_artist :: proc(
 	res: types.Artist_Id,
 	ok: bool,
 ) {
+	if existing_artist, existing_artist_ok := find_existing_artist(
+		db,
+		artist,
+		allocator,
+	); existing_artist_ok {
+		defer types.delete_artist(existing_artist)
+		return types.Artist_Id(strings.clone(string(existing_artist.id), allocator)), true
+	}
 
-	new_artist_id, new_artist_err := new_artist(db, artist)
+	new_artist_id, new_artist_err := new_artist(db, artist, allocator)
 
-	if (new_artist_err == .None || new_artist_err == .UniqueConstraint) ==
-	   false {
+	if new_artist_err == .None {
+		fmt.printfln("New artist |%v| with id |%v|", artist.name, new_artist_id)
+		return new_artist_id, true
+	}
+
+	if new_artist_err != .UniqueConstraint {
 		return "", false
 	}
 
-	fmt.printfln("New artist |%v| with id |%v|", artist.name, new_artist_id)
+	fmt.printfln("Sync, artist unique constraint for |%v|", artist.name)
 
-	if (new_artist_err == .UniqueConstraint) {
-
-		fmt.printfln("Sync, artist unique constraint")
-		existing_artist, existing_artist_ok := get_artist_by_name(
-			db,
+	existing_artist, existing_artist_ok := find_existing_artist(
+		db,
+		artist,
+		allocator,
+	)
+	if !existing_artist_ok {
+		fmt.eprintfln(
+			"artist unique constraint but no match by mb_id, acoust_id, or name for |%v|",
 			artist.name,
 		)
-
-		assert(existing_artist_ok)
-
-		defer types.delete_artist(existing_artist)
-
-		fmt.printfln("Existing artist %v", existing_artist)
-
 		delete(string(new_artist_id))
-		new_artist_id = types.Artist_Id(
-			strings.clone(string(existing_artist.id)),
-		)
+		return "", false
 	}
 
-	return new_artist_id, true
+	defer types.delete_artist(existing_artist)
 
+	fmt.printfln("Existing artist %v", existing_artist)
+
+	delete(string(new_artist_id))
+	return types.Artist_Id(strings.clone(string(existing_artist.id), allocator)), true
 }

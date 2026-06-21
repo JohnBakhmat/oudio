@@ -58,7 +58,6 @@ walk_dir :: proc(
 
 		fmt.printfln("Found: %s", filePath)
 		append(&paths, filePath)
-		fmt.printfln("inner Paths: %$v", paths)
 	}
 
 	fmt.printfln("=== Total ===")

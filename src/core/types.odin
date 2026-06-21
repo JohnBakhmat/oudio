@@ -3,7 +3,7 @@ package core
 Track_Id :: distinct string
 Artist_Id :: distinct string
 Album_Id :: distinct string
-
+File_Id :: distinct string
 
 Track :: struct {
 	id:           Track_Id,
@@ -85,4 +85,18 @@ AlbumFull :: struct {
 AlbumShort :: struct {
 	album:   Album,
 	artists: []Artist,
+}
+
+
+FileRecord :: struct {
+	id:       File_Id,
+	path:     string,
+	track_id: Track_Id,
+}
+
+
+delete_file_record :: proc(fr: FileRecord, allocator := context.allocator) {
+	delete(fr.path)
+	delete(string(fr.id))
+	delete(string(fr.track_id))
 }

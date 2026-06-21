@@ -83,3 +83,29 @@ should_get_or_create_artist :: proc(t: ^testing.T) {
 	delete(string(first_id))
 	delete(string(second_id))
 }
+
+@(test)
+should_get_or_create_artist_by_mb_id_when_name_differs :: proc(t: ^testing.T) {
+	db := open_test_db(t)
+	defer sqlite.close(db)
+
+	mb_id := "eb18af98-09ff-467c-921e-9db3e0000d48"
+
+	first := types.Artist {
+		name  = "目黒将司 & 小西利樹",
+		mb_id = mb_id,
+	}
+	first_id, first_ok := get_or_create_artist(db, first)
+	testing.expect(t, first_ok)
+	defer delete(string(first_id))
+
+	second := types.Artist {
+		name  = "小西利樹",
+		mb_id = mb_id,
+	}
+	second_id, second_ok := get_or_create_artist(db, second)
+	testing.expect(t, second_ok)
+	defer delete(string(second_id))
+
+	testing.expect(t, string(second_id) == string(first_id))
+}

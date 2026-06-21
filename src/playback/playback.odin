@@ -33,7 +33,8 @@ data_callback :: proc "c" (
 
 basic_playback :: proc() {
 	fmt.printfln("Basic playback start")
-	file_path: cstring = "/Users/johnb/boombox-test-data/music/2013. The Postal Service - Give Up (10th Anniversary Deluxe Edition)/Disc 2/05. Suddenly Everything Has Changed.flac"
+	file_path: cstring = "/mnt/secondary/music/As Tall as Lions - You Can\'t Take It With You (2009)/01. As Tall as Lions - Circles.flac"
+	fmt.printfln("Playing %s", file_path)
 
 	decoder: ma.decoder
 

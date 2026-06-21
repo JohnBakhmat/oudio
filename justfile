@@ -11,3 +11,6 @@ sync:
 
 ui:
 	odin build ./src/main.odin -file -o:none -debug -out:./build/ui && ./build/ui
+
+playback:
+	odin build ./src/main.odin -file -o:none -debug -out:./build/playback && ./build/playback

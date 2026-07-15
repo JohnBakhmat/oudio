@@ -2,7 +2,7 @@ package formats
 
 import "core:bufio"
 import "core:fmt"
-import os "core:os/os2"
+import os "core:os"
 import "core:testing"
 
 

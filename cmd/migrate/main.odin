@@ -1,4 +1,4 @@
-package db
+package migrate
 
 import "core:fmt"
 import "core:mem"
@@ -56,10 +56,12 @@ main :: proc() {
 
 
 	migration_dir, err := filepath.join(
-		{#directory, "migrations"},
+		{#directory, "../../migrations"},
 		context.allocator,
 	)
 	defer delete(migration_dir)
+
+	fmt.printfln("Migration dir", migration_dir)
 
 	assert(err == nil, "Unable to resolve migrations folder path")
 

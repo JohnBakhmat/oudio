@@ -1,7 +1,7 @@
 
 
 migrate:
-	odin run ./src/db/migrate.odin -file -- oudio.db
+	odin run ./cmd/migrate/main.odin -file -- oudio.db
 
 drop: 
 	rm -rf oudio.db
